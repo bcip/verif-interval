@@ -11,14 +11,43 @@ Require Import Interval.
 
 Open Scope Z_scope.
 
-Definition assertion : Type := total_map interval.
+Section List_map.
+
+Variable A : Type.
+
+Variable default : A.
+
+Definition list_map := list (id * A).
+
+Fixpoint list_to_map (ls : list_map) :=
+  match ls with
+  | nil => t_empty default
+  | cons (hd1, hd2) tl => t_update (list_to_map tl) hd1 hd2
+  end.
+
+End List_map.
+
+Definition assertion : Type := list_map interval.
 
 Definition default_interval : interval := IInterval (Some 0) (Some 0).
 
-Definition empty : assertion := t_empty default_interval.
+Definition empty : assertion := nil.
 
-Definition state_in_range (st : state) (s : assertion) : Prop :=
-  forall (x : id), include (s x) (st x).
+Definition assertion_to_map : assertion -> total_map interval :=
+  list_to_map interval default_interval.
+
+Definition state_in_range (st : state) (m : total_map interval) : Prop :=
+  forall (x : id), include (m x) (st x).
+
+Definition state_in_assertion (st : state) (s : assertion) :=
+  state_in_range st (assertion_to_map s).
+
+Notation "st |= s" := (state_in_assertion st s) (at level 18).
+
+Definition assertion_in_assertion (s1 : assertion) (s2 : assertion) :=
+  forall st : state, state_in_assertion st s1 -> state_in_assertion st s2.
+
+Notation "s1 |== s2" := (assertion_in_assertion s1 s2) (at level 18).
 
 (* annotation :=
  * (assertion)
@@ -104,8 +133,8 @@ Definition postcondition (A : annotation) : assertion :=
 
 Definition valid' (s : assertion) (A' : annotation') : Prop :=
   forall st st', get_com' A' / st \\ st' ->
-  state_in_range st s ->
-  state_in_range st' (postcondition' A').
+  state_in_assertion st s ->
+  state_in_assertion st' (postcondition' A').
 
 Definition valid (A : annotation) : Prop :=
   match A with
@@ -117,29 +146,29 @@ Inductive step_valid : annotation -> Prop :=
   with
   step_valid' : assertion -> annotation' -> Prop :=
   | SVSkip : forall s s',
-    (forall st, state_in_range st s -> state_in_range st s')
+    (forall st, state_in_assertion st s -> state_in_assertion st s')
     -> step_valid' s (ASkip s')
   | SVAss : forall s x a s',
-    (forall st, state_in_range st s -> state_in_range (t_update st x (aeval st a)) s')
+    (forall st, state_in_assertion st s -> state_in_assertion (t_update st x (aeval st a)) s')
     -> step_valid' s (AAss x a s')
   | SVSeq : forall s A1 A2,
     step_valid' s A1 ->
     step_valid' (postcondition' A1) A2 ->
     step_valid' s (ASeq A1 A2)
   | SVIf : forall s b A1 A2 s',
-    (forall st, state_in_range st s -> beval st b = true -> state_in_range st (precondition A1)) ->
-    (forall st, state_in_range st s -> beval st b = false -> state_in_range st (precondition A2)) ->
+    (forall st, state_in_assertion st s -> beval st b = true -> state_in_assertion st (precondition A1)) ->
+    (forall st, state_in_assertion st s -> beval st b = false -> state_in_assertion st (precondition A2)) ->
     step_valid A1 ->
     step_valid A2 ->
-    (forall st, state_in_range st (postcondition A1) -> state_in_range st s') ->
-    (forall st, state_in_range st (postcondition A2) -> state_in_range st s') ->
+    (forall st, state_in_assertion st (postcondition A1) -> state_in_assertion st s') ->
+    (forall st, state_in_assertion st (postcondition A2) -> state_in_assertion st s') ->
     step_valid' s (AIf b A1 A2 s')
   | SVWhile : forall s b inv A s',
-    (forall st, state_in_range st s -> state_in_range st inv) ->
-    (forall st, state_in_range st inv -> beval st b = true -> state_in_range st (precondition A)) ->
-    (forall st, state_in_range st inv -> beval st b = false -> state_in_range st s') ->
+    (forall st, state_in_assertion st s -> state_in_assertion st inv) ->
+    (forall st, state_in_assertion st inv -> beval st b = true -> state_in_assertion st (precondition A)) ->
+    (forall st, state_in_assertion st inv -> beval st b = false -> state_in_assertion st s') ->
     step_valid A ->
-    (forall st, state_in_range st (postcondition A) -> state_in_range st inv) ->
+    (forall st, state_in_assertion st (postcondition A) -> state_in_assertion st inv) ->
     step_valid' s (AWhile b inv A s').
 
 Scheme step_valid_ind_2 := Minimality for step_valid Sort Prop
@@ -158,7 +187,7 @@ Proof.
   - destruct A1. eauto.
   - destruct A2. eauto.
   - clear dependent st'0.
-    assert (state_in_range st inv) by auto.
+    assert (state_in_assertion st inv) by auto.
     clear dependent s.
     clear H9.
     remember (WHILE b DO get_com A END) as c.

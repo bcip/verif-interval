@@ -244,6 +244,49 @@ Definition abs (x: interval) : interval :=
 
 
 
+(* TODO *)
+(* Compare whether interval x is contained by interval y *)
+Axiom leb : interval -> interval -> bool.
+Axiom eqb : interval -> interval -> bool.
+
+Definition geb (x y : interval) : bool :=
+  leb y x.
+
+Definition le (x y : interval) : Prop := 
+  forall n, include x n -> include y n.
+
+Definition ge (x y : interval) : Prop := 
+  le y x.
+
+Definition feq (x y : interval) : Prop := 
+  le x y /\ le y x.
+
+Lemma leb_le : forall x y : interval,
+  leb x y = true <-> le x y.
+Admitted.
+
+Lemma eqb_feq : forall x y : interval,
+  eqb x y = true <-> feq x y.
+Admitted.
+
+Lemma geb_ge : forall x y : interval,
+  geb x y = true <-> ge x y.
+Proof.
+  intros.
+  pose (leb_le y x).
+  tauto.
+Qed.
+
+Lemma eq_dec (x y : interval) : (x = y) + (x <> y).
+Proof.
+  destruct x as [[xlo | ] [xhi | ]], y as [[ylo | ] [yhi | ]];
+  try solve [right; inversion 1];
+  try destruct (Z.eq_dec xlo ylo);
+  try destruct (Z.eq_dec xhi yhi);
+  try solve [left; subst; auto];
+  solve [right; inversion 1; congruence].
+Qed.
+
 
 
 

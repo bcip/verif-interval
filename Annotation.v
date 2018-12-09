@@ -7,47 +7,9 @@ Require Import Coq.Strings.String.
 Import ListNotations.
 Require Import Maps.
 Require Import Program.
-Require Import Interval.
+Require Import Assertion.
 
 Open Scope Z_scope.
-
-Section List_map.
-
-Variable A : Type.
-
-Variable default : A.
-
-Definition list_map := list (id * A).
-
-Fixpoint list_to_map (ls : list_map) :=
-  match ls with
-  | nil => t_empty default
-  | cons (hd1, hd2) tl => t_update (list_to_map tl) hd1 hd2
-  end.
-
-End List_map.
-
-Definition assertion : Type := list_map interval.
-
-Definition default_interval : interval := IInterval (Some 0) (Some 0).
-
-Definition empty : assertion := nil.
-
-Definition assertion_to_map : assertion -> total_map interval :=
-  list_to_map interval default_interval.
-
-Definition state_in_range (st : state) (m : total_map interval) : Prop :=
-  forall (x : id), include (m x) (st x).
-
-Definition state_in_assertion (st : state) (s : assertion) :=
-  state_in_range st (assertion_to_map s).
-
-Notation "st |= s" := (state_in_assertion st s) (at level 18).
-
-Definition assertion_in_assertion (s1 : assertion) (s2 : assertion) :=
-  forall st : state, state_in_assertion st s1 -> state_in_assertion st s2.
-
-Notation "s1 |== s2" := (assertion_in_assertion s1 s2) (at level 18).
 
 (* annotation :=
  * (assertion)

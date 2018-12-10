@@ -63,6 +63,28 @@ Definition add (x: interval) (y: interval) : interval :=
       IInterval lower upper
     end.
 
+Lemma include_non_empty : forall (x : interval) (n : Z),
+  include x n ->
+  emptyb x = false.
+Proof.
+  unfold include. intros.
+  destruct x as [[] []]; auto.
+  simpl. rewrite Z.ltb_ge. omega.
+Qed.
+
+Lemma add_sound : forall (x y : interval) (n m : Z),
+  include x n ->
+  include y m ->
+  include (add x y) (n + m).
+Proof.
+  intros.
+  unfold include. intros.
+  destruct x as [[] []], y as [[] []];
+  unfold add; erewrite !include_non_empty by eauto;
+  simpl; repeat split;
+  unfold include in *; omega.
+Qed.
+
 Definition neg (x: interval) : interval :=
   if emptyb x then bottom else
     match x with
@@ -151,7 +173,7 @@ Definition meet (x: interval) (y: interval) : interval :=
       in
       IInterval lower upper
     end.
-      
+
 
 Definition is_nonnegb (x: interval) : bool :=
   match x with
@@ -161,7 +183,7 @@ Definition is_nonnegb (x: interval) : bool :=
     | Some a => Z.leb 0 a
     end
   end.
-  
+
 Definition is_nonposb (x: interval) : bool :=
 match x with
 | IInterval xlo xhi =>
@@ -268,6 +290,9 @@ Admitted.
 Lemma eqb_feq : forall x y : interval,
   eqb x y = true <-> feq x y.
 Admitted.
+
+Axiom feq_sym : forall x y : interval,
+  feq x y -> feq y x.
 
 Lemma geb_ge : forall x y : interval,
   geb x y = true <-> ge x y.

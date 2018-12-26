@@ -133,6 +133,18 @@ Definition mul_const (k: Z) (x: interval) : interval :=
         IInterval lower upper
     end.
 
+(*TODO*)
+
+(*Lemma mul_const_sound : forall (x: interval) (n k : Z),
+  include x n ->
+  include (mul_const k x ) (k * n).
+Proof.
+  intros.
+  unfold include. 
+  destruct x as [[] []];
+  unfold mul_const; erewrite !include_non_empty by eauto.
+*)
+
 Definition join (x: interval) (y: interval) : interval :=
   if emptyb x then y
   else if emptyb y then x
@@ -266,11 +278,35 @@ Definition abs (x: interval) : interval :=
 
 
 
-(* TODO *)
 (* Compare whether interval x is contained by interval y *)
-Axiom leb : interval -> interval -> bool.
-Axiom eqb : interval -> interval -> bool.
+Definition leb (x: interval) (y: interval) : bool :=
+  if emptyb x then true 
+  else if emptyb y then false
+  else
+  match x,y with
+    | IInterval xlo xhi, IInterval ylo yhi =>
+      match xlo, ylo with
+      | _, None =>
+        match xhi, yhi with
+        | _ , None => true
+        | None, Some c => false
+        | Some c, Some d => Z.leb c d
+        end
+      | None, Some a => false
+      | Some a, Some b =>
+        if Z.geb a b then 
+        match xhi, yhi with
+        | _ , None => true
+        | None, Some c => false
+        | Some c, Some d => Z.leb c d
+        end
+        else false
+      end
+   end.
 
+Definition eqb (x y : interval) : bool :=
+  andb (leb x y) (leb y x).
+  
 Definition geb (x y : interval) : bool :=
   leb y x.
 

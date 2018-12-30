@@ -2,6 +2,12 @@ Require Import Coq.Arith.Arith.
 Require Import Coq.omega.Omega.
 Open Scope Z_scope.
 
+Hint Rewrite Z.eqb_eq Z.ltb_lt Z.leb_le Z.gtb_lt Z.geb_le Z.eqb_neq: arith.
+
+Ltac arith := 
+  autorewrite with arith in *;
+  omega.
+
 Inductive interval : Type :=
   | IInterval : forall (lo hi : option Z), interval.
 
@@ -34,9 +40,6 @@ Definition inb (i : interval) (x : Z) : bool :=
     andb lob hib
   end.
 
-(* Lemma include_inb : forall i x,
-  include i x -> inb i x = true. *)
-
 Definition emptyb (x : interval) : bool :=
   match x with
   | IInterval (Some y) (Some z) =>
@@ -65,13 +68,21 @@ Definition add (x: interval) (y: interval) : interval :=
 
 Lemma include_non_empty : forall (x : interval) (n : Z),
   include x n ->
-  emptyb x = false.
+  emptyb x = false. 
 Proof.
   unfold include. intros.
   destruct x as [[] []]; auto.
   simpl. rewrite Z.ltb_ge. omega.
 Qed.
 
+(* TODO *)
+Lemma include_inb : forall i x,
+  include i x -> inb i x = true.
+Proof.
+  unfold include.
+  destruct i as [[] []];
+  unfold inb; intros.
+  
 Lemma add_sound : forall (x y : interval) (n m : Z),
   include x n ->
   include y m ->
@@ -101,6 +112,18 @@ Definition neg (x: interval) : interval :=
       in
       IInterval lower upper
     end.
+    
+Lemma neg_sound : forall (x: interval) (n: Z),
+  include x n ->
+  include (neg x) (-n).
+Proof.
+  intros.
+  unfold include.
+  destruct x as [[] []];
+  unfold neg; erewrite !include_non_empty by eauto;
+  repeat split.
+  all: (unfold include in *; omega).
+Qed.
 
 Definition mul_const (k: Z) (x: interval) : interval :=
   if emptyb x then bottom 
@@ -135,15 +158,28 @@ Definition mul_const (k: Z) (x: interval) : interval :=
 
 (*TODO*)
 
-(*Lemma mul_const_sound : forall (x: interval) (n k : Z),
+Lemma mul_const_sound : forall (x: interval) (n k : Z),
   include x n ->
   include (mul_const k x ) (k * n).
 Proof.
   intros.
   unfold include. 
+  unfold mul_const.
   destruct x as [[] []];
-  unfold mul_const; erewrite !include_non_empty by eauto.
-*)
+  erewrite !include_non_empty by eauto;
+  unfold include in *;
+  destruct (k =? 0) eqn:?;
+  destruct (k >? 0) eqn:?;
+  repeat split; try arith.
+  assert (k*n = 0). apply Z_eq_mult; arith. omega.
+  assert (k*n = 0). apply Z_eq_mult; arith. omega.
+  rewrite Z.mul_comm;apply Z.mul_le_mono_pos_l;arith.
+  rewrite Z.mul_comm;apply Z.mul_le_mono_pos_r;arith.
+  rewrite Z.mul_comm.
+  assert (k < 0). 
+  
+  Search (_< 0).
+  
 
 Definition join (x: interval) (y: interval) : interval :=
   if emptyb x then y
@@ -163,6 +199,85 @@ Definition join (x: interval) (y: interval) : interval :=
       IInterval lower upper
     end.
 
+
+Lemma join_sound : forall (x y : interval) (n m : Z),
+  include x n ->
+  include y m ->
+  include (join x y) (n) /\ include (join x y) (m).
+Proof.
+  intros.
+  split;
+  unfold include;
+  destruct x as [[] []], y as [[] []];
+  unfold join;
+  erewrite !include_non_empty by eauto;
+  simpl; auto.
+  unfold include in *.
+  all : repeat split.
+  assert (Z.min z z1 <= z).
+  apply Z.le_min_l.
+  omega.
+  assert (z0 <= Z.max z0 z2).
+  apply Z.le_max_l.
+  omega.
+  unfold include in *.
+  assert (Z.min z z1 <= z).
+  apply Z.le_min_l.
+  omega.
+  unfold include in *.
+  assert (z0 <= Z.max z0 z1).
+  apply Z.le_max_l.
+  omega.
+  unfold include in *.
+  assert (Z.min z z0 <= z).
+  apply Z.le_min_l.
+  omega.
+  unfold include in *.
+  assert (Z.min z z0 <= z).
+  apply Z.le_min_l.
+  omega.
+  unfold include in *.
+  assert (z <= Z.max z z1).
+  apply Z.le_max_l.
+  omega.
+  unfold include in *.
+  assert (z <= Z.max z z0).
+  apply Z.le_max_l.
+  omega.
+  unfold include in *.
+  assert (Z.min z z1 <= z1).
+  apply Z.le_min_r.
+  omega.
+  unfold include in *.
+  assert (z2 <= Z.max z0 z2).
+  apply Z.le_max_r.
+  omega.
+  unfold include in *.
+  assert (Z.min z z1 <= z1).
+  apply Z.le_min_r.
+  omega.
+  unfold include in *.
+  assert (z1 <= Z.max z0 z1).
+  apply Z.le_max_r.
+  omega.
+  unfold include in *.
+  assert (Z.min z z0 <= z0).
+  try apply Z.le_min_r.
+  try omega.
+  unfold include in *.
+  assert (Z.min z z0 <= z0).
+  apply Z.le_min_r.
+  omega.
+  unfold include in *.
+  assert (z1 <= Z.max z z1).
+  apply Z.le_max_r.
+  omega.
+  unfold include in *.
+  assert (z0 <= Z.max z z0).
+  apply Z.le_max_r.
+  omega.
+Qed.
+  
 Definition meet (x: interval) (y: interval) : interval :=
   if orb (emptyb x) (emptyb y) then bottom else
     match x,y with
@@ -186,6 +301,22 @@ Definition meet (x: interval) (y: interval) : interval :=
       IInterval lower upper
     end.
 
+Lemma meet_sound : forall (x y : interval) (n : Z),
+  include x n ->
+  include y n ->
+  include (meet x y) (n).
+Proof.
+  intros.
+  unfold include.
+  destruct x as [[] []], y as [[] []];
+  unfold meet;
+  erewrite !include_non_empty by eauto;
+  simpl; auto.
+  unfold include in *.
+  all: repeat split.
+  all: try apply Z.max_lub; try apply Z.min_glb; try omega.
+  all: (unfold include in *; omega).
+Qed.
 
 Definition is_nonnegb (x: interval) : bool :=
   match x with
@@ -196,6 +327,20 @@ Definition is_nonnegb (x: interval) : bool :=
     end
   end.
 
+(* TODO *)
+
+Lemma is_nonnegb_sound : forall (x: interval) (n : Z),
+  include x n ->
+  is_nonnegb x = true ->
+  n >= 0.
+Proof.
+  unfold include.
+  destruct x as [[] []];
+  unfold is_nonnegb;
+  intros. 
+  all: try arith.
+
+
 Definition is_nonposb (x: interval) : bool :=
 match x with
 | IInterval xlo xhi =>
@@ -205,6 +350,19 @@ match x with
   end
 end.
 
+(* TODO *)
+
+Lemma is_nonposb_sound : forall (x: interval) (n : Z),
+  include x n ->
+  is_nonposb x = true ->
+  n <= 0.
+Proof.
+  unfold include.
+  destruct x as [[] []];
+  unfold is_nonposb;
+  intros. 
+  all: try arith.
+ 
 Definition top := IInterval None None.
 
 Definition mul (x: interval) (y: interval) : interval :=
@@ -237,6 +395,8 @@ Definition mul (x: interval) (y: interval) : interval :=
       end
     end.
 
+(* TODO mul_sound *)
+
 Definition elem (a: Z) (x: interval) : bool :=
   match x with
   | IInterval xlo xhi =>
@@ -247,7 +407,8 @@ Definition elem (a: Z) (x: interval) : bool :=
     | Some b, Some c => andb (a >=? b) (a <=? c)
     end
   end.
-
+  
+(* TODO inb =? elem *)
 
 Definition div (x: interval) (y: interval) : interval :=
   if orb (emptyb x) (emptyb y) then bottom else
@@ -261,6 +422,7 @@ Definition div (x: interval) (y: interval) : interval :=
       end
     end.
 
+(* TODO div_sound *)
 
 Definition abs (x: interval) : interval :=
   if emptyb x then bottom 
@@ -276,7 +438,7 @@ Definition abs (x: interval) : interval :=
       in IInterval (Some 0) upper
     end.
 
-
+(* TODO abs_sound *)
 
 (* Compare whether interval x is contained by interval y *)
 Definition leb (x: interval) (y: interval) : bool :=
@@ -319,6 +481,7 @@ Definition ge (x y : interval) : Prop :=
 Definition feq (x y : interval) : Prop := 
   le x y /\ le y x.
 
+(*TODO*)
 Lemma leb_le : forall x y : interval,
   leb x y = true <-> le x y.
 Admitted.

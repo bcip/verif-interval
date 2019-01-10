@@ -2,11 +2,38 @@ Require Import Coq.Arith.Arith.
 Require Import Coq.omega.Omega.
 Open Scope Z_scope.
 
-Hint Rewrite Z.eqb_eq Z.ltb_lt Z.leb_le Z.gtb_lt Z.geb_le Z.eqb_neq: arith.
+Hint Rewrite Z.eqb_eq Z.ltb_lt Z.leb_le Z.gtb_lt Z.geb_le : arith.
 
-Ltac arith := 
+Module Z.
+Lemma gtb_nlt : forall n m, (Z.gtb n m = false) <-> ~ (Z.lt m n).
+Proof.
+  intros.
+  split; intros.
+  - intro. rewrite <- Z.gtb_lt in *. congruence.
+  - destruct (n >? m) eqn:?.
+    + rewrite Z.gtb_lt in *. tauto.
+    + auto.
+Qed.
+
+Lemma geb_nle : forall n m, (Z.geb n m = false) <-> ~ (Z.le m n).
+Proof.
+  intros.
+  split; intros.
+  - intro. rewrite <- Z.geb_le in *. congruence.
+  - destruct (n >=? m) eqn:?.
+    + rewrite Z.geb_le in *. tauto.
+    + auto.
+Qed.
+End Z.
+
+Hint Rewrite Z.eqb_neq Z.ltb_nlt Z.leb_nle Z.gtb_nlt Z.geb_nle : arith.
+
+Ltac arith :=
+  repeat rewrite Bool.andb_true_iff in *;
+  repeat rewrite Bool.orb_false_iff in *;
   autorewrite with arith in *;
   omega.
+
 
 Inductive interval : Type :=
   | IInterval : forall (lo hi : option Z), interval.
@@ -82,6 +109,9 @@ Proof.
   unfold include.
   destruct i as [[] []];
   unfold inb; intros.
+  arith.
+  all: (repeat rewrite Bool.andb_true_iff; split; try arith; auto).
+Qed.
   
 Lemma add_sound : forall (x y : interval) (n m : Z),
   include x n ->
@@ -175,11 +205,19 @@ Proof.
   assert (k*n = 0). apply Z_eq_mult; arith. omega.
   rewrite Z.mul_comm;apply Z.mul_le_mono_pos_l;arith.
   rewrite Z.mul_comm;apply Z.mul_le_mono_pos_r;arith.
-  rewrite Z.mul_comm.
-  assert (k < 0). 
-  
-  Search (_< 0).
-  
+  rewrite Z.mul_comm;apply Z.mul_le_mono_neg_l; arith; omega.
+  rewrite Z.mul_comm;apply Z.mul_le_mono_neg_r; arith; omega.
+  assert (k*n = 0). apply Z_eq_mult; arith. omega.
+  assert (k*n = 0). apply Z_eq_mult; arith. omega.
+  rewrite Z.mul_comm;apply Z.mul_le_mono_pos_l;arith.
+  rewrite Z.mul_comm;apply Z.mul_le_mono_neg_r;arith.
+  assert (k*n = 0). apply Z_eq_mult; arith. omega.
+  assert (k*n = 0). apply Z_eq_mult; arith. omega.
+  rewrite Z.mul_comm;apply Z.mul_le_mono_pos_r;arith.
+  rewrite Z.mul_comm;apply Z.mul_le_mono_neg_l; arith; omega.
+  assert (k*n = 0). apply Z_eq_mult; arith. omega.
+  assert (k*n = 0). apply Z_eq_mult; arith. omega.
+Qed.
 
 Definition join (x: interval) (y: interval) : interval :=
   if emptyb x then y
@@ -301,13 +339,14 @@ Definition meet (x: interval) (y: interval) : interval :=
       IInterval lower upper
     end.
 
+(*TODO: IFF*)
 Lemma meet_sound : forall (x y : interval) (n : Z),
   include x n ->
   include y n ->
   include (meet x y) (n).
 Proof.
   intros.
-  unfold include.
+  unfold include;
   destruct x as [[] []], y as [[] []];
   unfold meet;
   erewrite !include_non_empty by eauto;
@@ -396,6 +435,19 @@ Definition mul (x: interval) (y: interval) : interval :=
     end.
 
 (* TODO mul_sound *)
+
+Lemma mul_sound : forall (x y : interval) (n m : Z),
+  include x n ->
+  include y m ->
+  include (mul x y) (n * m).
+Proof.
+  intros.
+  unfold include. 
+  destruct x as [[] []], y as [[] []];
+  unfold mul; erewrite !include_non_empty by eauto.
+  simpl. repeat split;
+  unfold include in *; omega.
+Qed.
 
 Definition elem (a: Z) (x: interval) : bool :=
   match x with

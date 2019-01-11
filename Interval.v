@@ -102,7 +102,6 @@ Proof.
   simpl. rewrite Z.ltb_ge. omega.
 Qed.
 
-(* TODO *)
 Lemma include_inb : forall i x,
   include i x -> inb i x = true.
 Proof.
@@ -151,8 +150,8 @@ Proof.
   unfold include.
   destruct x as [[] []];
   unfold neg; erewrite !include_non_empty by eauto;
-  repeat split.
-  all: (unfold include in *; omega).
+  repeat split; 
+  unfold include in *; omega.
 Qed.
 
 Definition mul_const (k: Z) (x: interval) : interval :=
@@ -186,7 +185,6 @@ Definition mul_const (k: Z) (x: interval) : interval :=
         IInterval lower upper
     end.
 
-(*TODO*)
 
 Lemma mul_const_sound : forall (x: interval) (n k : Z),
   include x n ->
@@ -237,8 +235,36 @@ Definition join (x: interval) (y: interval) : interval :=
       IInterval lower upper
     end.
 
-
-Lemma join_sound : forall (x y : interval) (n m : Z),
+Lemma join_sound2 : forall (x y : interval) (n m p: Z),
+  include x n ->
+  include y m ->
+  (Z.min n m) <= p <= (Z.max n m) ->
+  include (join x y) (p).
+Proof.
+  intros.
+  unfold include;destruct x as [[] []], y as [[] []];
+  unfold join;
+  erewrite !include_non_empty by eauto;
+  split;simpl; auto; unfold include in *.
+  assert ((Z.min z z1) <= (Z.min n m)).
+  apply Z.min_le_compat; omega. omega.
+  assert ((Z.max n m) <= (Z.max z0 z2)).
+  apply Z.max_le_compat; omega. omega.
+  assert ((Z.min z z1) <= (Z.min n m)).
+  apply Z.min_le_compat; omega. omega.  
+  assert ((Z.max n m) <= (Z.max z0 z1)).
+  apply Z.max_le_compat; omega. omega.
+  assert ((Z.min z z0) <= (Z.min n m)).
+  apply Z.min_le_compat; omega. omega.
+  assert ((Z.min z z0) <= (Z.min n m)).
+  apply Z.min_le_compat; omega. omega.
+  assert ((Z.max n m) <= (Z.max z z1)).
+  apply Z.max_le_compat; omega. omega.
+  assert ((Z.max n m) <= (Z.max z z0)).
+  apply Z.max_le_compat; omega. omega.
+Qed.
+  
+(*Lemma join_sound : forall (x y : interval) (n m : Z),
   include x n ->
   include y m ->
   include (join x y) (n) /\ include (join x y) (m).
@@ -249,72 +275,56 @@ Proof.
   destruct x as [[] []], y as [[] []];
   unfold join;
   erewrite !include_non_empty by eauto;
-  simpl; auto.
-  unfold include in *.
-  all : repeat split.
+  simpl; auto; unfold include in *; repeat split.
   assert (Z.min z z1 <= z).
   apply Z.le_min_l.
   omega.
   assert (z0 <= Z.max z0 z2).
   apply Z.le_max_l.
   omega.
-  unfold include in *.
   assert (Z.min z z1 <= z).
   apply Z.le_min_l.
   omega.
-  unfold include in *.
   assert (z0 <= Z.max z0 z1).
   apply Z.le_max_l.
   omega.
-  unfold include in *.
   assert (Z.min z z0 <= z).
   apply Z.le_min_l.
   omega.
-  unfold include in *.
   assert (Z.min z z0 <= z).
   apply Z.le_min_l.
   omega.
-  unfold include in *.
   assert (z <= Z.max z z1).
   apply Z.le_max_l.
   omega.
-  unfold include in *.
   assert (z <= Z.max z z0).
   apply Z.le_max_l.
   omega.
-  unfold include in *.
   assert (Z.min z z1 <= z1).
   apply Z.le_min_r.
   omega.
-  unfold include in *.
   assert (z2 <= Z.max z0 z2).
   apply Z.le_max_r.
   omega.
-  unfold include in *.
   assert (Z.min z z1 <= z1).
   apply Z.le_min_r.
   omega.
-  unfold include in *.
   assert (z1 <= Z.max z0 z1).
   apply Z.le_max_r.
   omega.
-  unfold include in *.
   assert (Z.min z z0 <= z0).
   try apply Z.le_min_r.
   try omega.
-  unfold include in *.
   assert (Z.min z z0 <= z0).
   apply Z.le_min_r.
   omega.
-  unfold include in *.
   assert (z1 <= Z.max z z1).
   apply Z.le_max_r.
   omega.
-  unfold include in *.
   assert (z0 <= Z.max z z0).
   apply Z.le_max_r.
   omega.
-Qed.
+Qed.*)
   
 Definition meet (x: interval) (y: interval) : interval :=
   if orb (emptyb x) (emptyb y) then bottom else
@@ -339,7 +349,7 @@ Definition meet (x: interval) (y: interval) : interval :=
       IInterval lower upper
     end.
 
-(*TODO: IFF*)
+
 Lemma meet_sound : forall (x y : interval) (n : Z),
   include x n ->
   include y n ->
@@ -366,18 +376,18 @@ Definition is_nonnegb (x: interval) : bool :=
     end
   end.
 
-(* TODO *)
+
 
 Lemma is_nonnegb_sound : forall (x: interval) (n : Z),
   include x n ->
   is_nonnegb x = true ->
   n >= 0.
 Proof.
-  unfold include.
-  destruct x as [[] []];
-  unfold is_nonnegb;
-  intros. 
+  unfold include;unfold is_nonnegb;
+  destruct x as [[] []];intros. 
   all: try arith.
+  all: discriminate.
+Qed.
 
 
 Definition is_nonposb (x: interval) : bool :=
@@ -389,7 +399,6 @@ match x with
   end
 end.
 
-(* TODO *)
 
 Lemma is_nonposb_sound : forall (x: interval) (n : Z),
   include x n ->
@@ -401,6 +410,8 @@ Proof.
   unfold is_nonposb;
   intros. 
   all: try arith.
+  all: discriminate.
+Qed.
  
 Definition top := IInterval None None.
 
@@ -441,14 +452,23 @@ Lemma mul_sound : forall (x y : interval) (n m : Z),
   include y m ->
   include (mul x y) (n * m).
 Proof.
+  pose mul_const_sound.
+  pose join_sound2.
   intros.
-  unfold include. 
-  destruct x as [[] []], y as [[] []];
-  unfold mul; erewrite !include_non_empty by eauto.
-  simpl. repeat split;
-  unfold include in *; omega.
-Qed.
+  unfold mul; destruct x as [[] []], y as [[] []];
+  erewrite !include_non_empty by eauto; simpl.
+  assert (include (mul_const z (IInterval (Some z1) (Some z2))) (z * m)).
+  assert (include (IInterval (Some z1) (Some z2)) m).
+  unfold include in *; split; omega.
+  auto.
+  assert (include (mul_const z0 (IInterval (Some z1) (Some z2))) (z0 * m)).
+  assert (include (IInterval (Some z1) (Some z2)) m).
+  unfold include in *; split; omega.
+  auto.
+  assert ((Z.min (z * m) (z0 * m)) <= n*m <=(Z.max (z * m) (z0 * m))).
 
+Admitted.
+  
 Definition elem (a: Z) (x: interval) : bool :=
   match x with
   | IInterval xlo xhi =>
@@ -536,6 +556,13 @@ Definition feq (x y : interval) : Prop :=
 (*TODO*)
 Lemma leb_le : forall x y : interval,
   leb x y = true <-> le x y.
+Proof.
+intros.
+split; destruct x as [[] []], y as [[] []];
+unfold leb; unfold le; unfold include; unfold emptyb.
+destruct (z0 <? z) eqn:?, (z2 <? z1) eqn:?, (z >=? z1) eqn:?, (z0 <=? z2) eqn:?;
+intros; try discriminate; try arith. 
+
 Admitted.
 
 Lemma eqb_feq : forall x y : interval,

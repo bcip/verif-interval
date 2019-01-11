@@ -376,8 +376,6 @@ Definition is_nonnegb (x: interval) : bool :=
     end
   end.
 
-
-
 Lemma is_nonnegb_sound : forall (x: interval) (n : Z),
   include x n ->
   is_nonnegb x = true ->
@@ -456,7 +454,7 @@ Proof.
   pose join_sound2.
   intros.
   unfold mul; destruct x as [[] []], y as [[] []];
-  erewrite !include_non_empty by eauto; simpl.
+  erewrite !include_non_empty by eauto; simpl;unfold include in H, H0.
   assert (include (mul_const z (IInterval (Some z1) (Some z2))) (z * m)).
   assert (include (IInterval (Some z1) (Some z2)) m).
   unfold include in *; split; omega.
@@ -466,9 +464,46 @@ Proof.
   unfold include in *; split; omega.
   auto.
   assert ((Z.min (z * m) (z0 * m)) <= n*m <=(Z.max (z * m) (z0 * m))).
+  destruct (m >? 0) eqn:?.
+  
+  assert ( (z * m) <= (n* m) <= (z0 * m));split.
+  apply Zmult_lt_0_le_compat_r; arith. 
+  apply Zmult_lt_0_le_compat_r; arith. 
+  assert (Z.min (n * m) (z0 * m) <= n * m). 
+  apply Z.le_min_l.
+  assert (Z.min (z * m) (z0 * m) <= Z.min (n * m) (z0 * m)).
+  apply Z.min_le_compat_r.
+  arith.
+  arith.
+  assert (n * m <= Z.max (z * m) (n * m)). 
+  apply Z.le_max_r.
+  assert (Z.max (z * m) (n * m) <= Z.max (z * m) (z0 * m)).
+  apply Z.max_le_compat_l.
+  arith.
+  arith.
+  
+  assert ( (z0 * m) <= (n* m) <= (z * m));split.
+  apply Z.mul_le_mono_nonpos_r; arith.
+  apply Z.mul_le_mono_nonpos_r; arith.
+  assert (Z.min (z * m) (n * m) <= n * m). 
+  apply Z.le_min_r.
+  assert (Z.min (z * m) (z0 * m) <= Z.min (z * m) (n * m) ).
+  apply Z.min_le_compat_l.
+  arith.
+  arith.
+  assert (n * m <= Z.max (n * m) (z0 * m)) by apply Z.le_max_l.
+  assert (Z.max (n * m) (z0 * m) <= Z.max (z * m) (z0 * m)).
+  apply Z.max_le_compat_r.
+  arith.
+  arith.
 
+  eauto.
+  
+  
+  Search (_* _<= _ *_).
 Admitted.
   
+(* Same as inb
 Definition elem (a: Z) (x: interval) : bool :=
   match x with
   | IInterval xlo xhi =>
@@ -478,9 +513,9 @@ Definition elem (a: Z) (x: interval) : bool :=
     | Some b, None => a >=? b
     | Some b, Some c => andb (a >=? b) (a <=? c)
     end
-  end.
+  end. *)
   
-(* TODO inb =? elem *)
+
 
 Definition div (x: interval) (y: interval) : interval :=
   if orb (emptyb x) (emptyb y) then bottom else
@@ -488,7 +523,7 @@ Definition div (x: interval) (y: interval) : interval :=
     | IInterval ylo yhi =>
       match ylo, yhi with
       | Some a, Some b => 
-        if elem 0 y then top
+        if inb y 0 then top
         else join (mul_const (1/a) x) (mul_const (1/b) x)
       | _,_ => top
       end
@@ -553,24 +588,37 @@ Definition ge (x y : interval) : Prop :=
 Definition feq (x y : interval) : Prop := 
   le x y /\ le y x.
 
-(*TODO*)
+(*TODO <-*)
 Lemma leb_le : forall x y : interval,
-  leb x y = true <-> le x y.
+  leb x y = true -> le x y.
 Proof.
-intros.
-split; destruct x as [[] []], y as [[] []];
+destruct x as [[] []], y as [[] []];
 unfold leb; unfold le; unfold include; unfold emptyb.
-destruct (z0 <? z) eqn:?, (z2 <? z1) eqn:?, (z >=? z1) eqn:?, (z0 <=? z2) eqn:?;
-intros; try discriminate; try arith. 
+1-16 : repeat match goal with
+| |- ((if ?cond then _ else _) = true) -> _ => (destruct cond eqn:?)
+end; intros; try discriminate; repeat split; try arith.
+(*all: intros;
+repeat match goal with
+| |- ((if ?cond then _ else _) = true) => (destruct cond eqn:?)
+end; auto; try arith.*)
 
-Admitted.
+Qed.
 
 Lemma eqb_feq : forall x y : interval,
-  eqb x y = true <-> feq x y.
-Admitted.
+  eqb x y = true -> feq x y.
+Proof.
+destruct x as [[] []], y as [[] []];
+unfold eqb; unfold feq;pose leb_le;
+rewrite Bool.andb_true_iff; intros []; split;auto.
 
-Axiom feq_sym : forall x y : interval,
+Qed.
+
+
+Lemma feq_sym : forall x y : interval,
   feq x y -> feq y x.
+Proof.
+unfold feq;intros; destruct H;split;auto.
+Qed.
 
 Lemma geb_ge : forall x y : interval,
   geb x y = true <-> ge x y.

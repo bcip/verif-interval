@@ -10,3 +10,5 @@ Maps.vo Maps.glob Maps.v.beautified: Maps.v
 Maps.vio: Maps.v
 Program.vo Program.glob Program.v.beautified: Program.v Maps.vo
 Program.vio: Program.v Maps.vio
+Tactics.vo Tactics.glob Tactics.v.beautified: Tactics.v Annotation.vo
+Tactics.vio: Tactics.v Annotation.vio

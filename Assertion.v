@@ -332,23 +332,21 @@ Proof.
   apply H. apply H0.
 Qed.
 
-Definition join (s1 s2 : assertion) (widen : interval -> interval -> interval) : assertion :=
+Definition join_base (s1 s2 : assertion) (f : interval -> interval -> interval) : assertion :=
   match s1, s2 with
   | None, _ => s2
   | _, None => s1
   | Some l1, Some l2 =>
-    Some (merge _ default_interval l1 l2 widen)
+    Some (merge _ default_interval l1 l2 f)
   end.
 
-
-
-Theorem join_spec : forall (s1 s2 : assertion) (widen : interval -> interval -> interval),
-  widen default_interval default_interval = default_interval ->
-  (forall x y, Interval.le x (widen x y)) ->
-  (forall x y, Interval.le y (widen x y)) ->
-  le s1 (join s1 s2 widen) /\ le s2 (join s1 s2 widen).
+Theorem join_base_sound : forall (s1 s2 : assertion) (f : interval -> interval -> interval),
+  f default_interval default_interval = default_interval ->
+  (forall x y, Interval.le x (f x y)) ->
+  (forall x y, Interval.le y (f x y)) ->
+  le s1 (join_base s1 s2 f) /\ le s2 (join_base s1 s2 f).
 Proof.
-  intros ? ? ? Hdefault Hwidenl Hwidenr.
+  intros.
   unfold le, join.
   destruct s1 as [l1 | ]; destruct s2 as [l2 | ];
   split; intros; simpl; unfold t_empty;
@@ -358,8 +356,26 @@ Proof.
   rewrite merge_spec; auto.
 Qed.
 
+Definition join (s1 s2 : assertion) :=
+  join_base s1 s2 Interval.join.
 
+Theorem join_sound : forall (s1 s2 : assertion),
+  le s1 (join s1 s2) /\ le s2 (join s1 s2).
+Proof.
+  intros. apply join_base_sound; auto.
+  all: intros; pose (Interval.join_sound x y); tauto.
+Qed.
 
+Definition join_widen (s1 s2 : assertion) :=
+  join_base s1 s2 Interval.widen.
+
+Theorem join_widen_sound : forall (s1 s2 : assertion),
+  le s1 (join_widen s1 s2) /\ le s2 (join_widen s1 s2).
+Proof.
+  intros. apply join_base_sound; auto.
+  admit.
+  all: intros; pose (Interval.widen_sound x y); tauto.
+Admitted.
 
 
 

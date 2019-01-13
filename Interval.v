@@ -76,6 +76,49 @@ Definition emptyb (x : interval) : bool :=
 
 Definition bottom := IInterval (Some 1) (Some 0).
 
+Definition top := IInterval None None.
+
+(* Compare whether interval x is contained by interval y *)
+Definition leb (x: interval) (y: interval) : bool :=
+  if emptyb x then true 
+  else if emptyb y then false
+  else
+  match x,y with
+    | IInterval xlo xhi, IInterval ylo yhi =>
+      match xlo, ylo with
+      | _, None =>
+        match xhi, yhi with
+        | _ , None => true
+        | None, Some c => false
+        | Some c, Some d => Z.leb c d
+        end
+      | None, Some a => false
+      | Some a, Some b =>
+        if Z.geb a b then 
+        match xhi, yhi with
+        | _ , None => true
+        | None, Some c => false
+        | Some c, Some d => Z.leb c d
+        end
+        else false
+      end
+   end.
+
+Definition eqb (x y : interval) : bool :=
+  andb (leb x y) (leb y x).
+
+Definition geb (x y : interval) : bool :=
+  leb y x.
+
+Definition le (x y : interval) : Prop := 
+  forall n, include x n -> include y n.
+
+Definition ge (x y : interval) : Prop := 
+  le y x.
+
+Definition feq (x y : interval) : Prop := 
+  le x y /\ le y x.
+
 Definition add (x: interval) (y: interval) : interval :=
   if orb (emptyb x) (emptyb y) then bottom else
     match x, y with
@@ -111,7 +154,7 @@ Proof.
   arith.
   all: (repeat rewrite Bool.andb_true_iff; split; try arith; auto).
 Qed.
-  
+
 Lemma add_sound : forall (x y : interval) (n m : Z),
   include x n ->
   include y m ->
@@ -263,8 +306,8 @@ Proof.
   assert ((Z.max n m) <= (Z.max z z0)).
   apply Z.max_le_compat; omega. omega.
 Qed.
-  
-(*Lemma join_sound : forall (x y : interval) (n m : Z),
+
+Lemma join_sound' : forall (x y : interval) (n m : Z),
   include x n ->
   include y m ->
   include (join x y) (n) /\ include (join x y) (m).
@@ -324,8 +367,14 @@ Proof.
   assert (z0 <= Z.max z z0).
   apply Z.le_max_r.
   omega.
-Qed.*)
-  
+Qed.
+
+Lemma join_sound : forall (x y : interval),
+  le x (join x y) /\ le y (join x y).
+Proof.
+  intros; split; do 2 intro.
+Admitted.
+
 Definition meet (x: interval) (y: interval) : interval :=
   if orb (emptyb x) (emptyb y) then bottom else
     match x,y with
@@ -412,8 +461,6 @@ Proof.
   all: try arith.
   all: discriminate.
 Qed.
- 
-Definition top := IInterval None None.
 
 Definition mul (x: interval) (y: interval) : interval :=
   if orb (emptyb x) (emptyb y) then bottom else
@@ -512,46 +559,13 @@ Definition abs (x: interval) : interval :=
 
 (* TODO abs_sound *)
 
-(* Compare whether interval x is contained by interval y *)
-Definition leb (x: interval) (y: interval) : bool :=
-  if emptyb x then true 
-  else if emptyb y then false
-  else
-  match x,y with
-    | IInterval xlo xhi, IInterval ylo yhi =>
-      match xlo, ylo with
-      | _, None =>
-        match xhi, yhi with
-        | _ , None => true
-        | None, Some c => false
-        | Some c, Some d => Z.leb c d
-        end
-      | None, Some a => false
-      | Some a, Some b =>
-        if Z.geb a b then 
-        match xhi, yhi with
-        | _ , None => true
-        | None, Some c => false
-        | Some c, Some d => Z.leb c d
-        end
-        else false
-      end
-   end.
 
-Definition eqb (x y : interval) : bool :=
-  andb (leb x y) (leb y x).
-  
-Definition geb (x y : interval) : bool :=
-  leb y x.
+Definition widen (x y : interval) : interval.
+Admitted.
 
-Definition le (x y : interval) : Prop := 
-  forall n, include x n -> include y n.
-
-Definition ge (x y : interval) : Prop := 
-  le y x.
-
-Definition feq (x y : interval) : Prop := 
-  le x y /\ le y x.
+Lemma widen_sound : forall x y : interval,
+  le x (widen x y) /\ le y (widen x y).
+Admitted.
 
 (*TODO*)
 Lemma leb_le : forall x y : interval,

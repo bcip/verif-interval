@@ -590,7 +590,17 @@ Proof.
   solve [right; inversion 1; congruence].
 Qed.
 
+Definition default_interval : interval := IInterval (Some 0) (Some 0).
 
+Definition empty_interval : interval := IInterval (Some 1) (Some 0).
+
+Lemma empty_interval_le_all : forall (x : interval),
+  Interval.le empty_interval x.
+Admitted.
+
+Lemma interval_le_refl : forall (x : interval),
+  Interval.le x x.
+Admitted.
 
 
 

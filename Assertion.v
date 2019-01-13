@@ -23,13 +23,126 @@ Fixpoint list_to_map (ls : list_map) :=
   | cons (hd1, hd2) tl => t_update (list_to_map tl) hd1 hd2
   end.
 
+Fixpoint update (ls : list_map) (x : id) (v : A) :=
+  match ls with
+  | nil => [(x, v)]
+  | (hd1, hd2) :: tl =>
+    if beq_id x hd1 then
+      (x, v) :: tl
+    else
+      (hd1, hd2) :: update tl x v
+  end.
+
+Lemma update_spec : forall (ls : list_map) (x : id) (v : A) (x' : id),
+  list_to_map (update ls x v) x' = t_update (list_to_map ls) x v x'.
+Proof.
+  intros. induction ls; auto.
+  simpl; destruct a as [hd1 hd2]; destruct (beq_id x hd1) eqn:?.
+  - rewrite beq_id_true_iff in *.
+    subst hd1. rewrite t_update_shadow. auto.
+  - rewrite beq_id_false_iff in *.
+    rewrite t_update_permute by auto.
+    simpl. unfold t_update at 1 2. rewrite IHls. auto.
+Qed.
+
+Fixpoint has_key (ls : list_map) (x : id) : bool :=
+  match ls with
+  | nil => false
+  | (hd1, hd2) :: tl =>
+    if beq_id hd1 x then true else has_key tl x
+  end.
+
+Lemma not_has_key_default : forall (ls : list_map) (x : id),
+  has_key ls x = false ->
+  list_to_map ls x = default.
+Proof.
+  intros; induction ls.
+  - auto.
+  - simpl. destruct a as [hd1 hd2]. unfold t_update.
+    simpl in H. destruct (beq_id hd1 x); try discriminate.
+    auto.
+Qed.
+
+Fixpoint merge_aux_l (l s : list_map) (f : A -> A -> A) : list_map :=
+  match l with
+    | nil => nil
+    | (hd1, hd2) :: tl =>
+      (hd1, f hd2 (list_to_map s hd1)) :: merge_aux_l tl s f
+    end.
+
+Fixpoint merge_aux_s (l s : list_map) (f : A -> A -> A) (new_l : list_map): list_map :=
+    match s with
+    | nil => new_l
+    | (hd1, hd2) :: tl =>
+      if has_key l hd1
+      then merge_aux_s l tl f new_l
+      else (hd1, f default hd2) :: merge_aux_s l tl f new_l
+    end.
+
+Definition merge (l s : list_map) (f : A -> A -> A) : list_map :=
+  merge_aux_s l s f (merge_aux_l l s f).
+
+Theorem merge_spec : forall (l s : list_map) (f : A -> A -> A) (x : id),
+  f default default = default ->
+  list_to_map (merge l s f) x = f (list_to_map l x) (list_to_map s x).
+Proof.
+  intros.
+  destruct (has_key l x) eqn:?.
+  - (* has_key l x = true *)
+    replace (list_to_map (merge l s f) x) with (list_to_map (merge_aux_l l s f) x). 2: {
+      unfold merge. set (new_l := merge_aux_l l s f). clearbody new_l.
+      induction s.
+      + auto.
+      + simpl. destruct a as [hd1 hd2].
+        destruct (has_key l hd1) eqn:?; auto.
+        simpl. unfold t_update.
+        destruct (beq_id hd1 x) eqn:?; auto.
+        rewrite beq_id_true_iff in *. congruence.
+    }
+    induction l.
+    + inversion Heqb.
+    + simpl. destruct a as [hd1 hd2]. simpl.
+      unfold t_update.
+      simpl in Heqb.
+      destruct (beq_id hd1 x) eqn:?.
+      * rewrite beq_id_true_iff in *. congruence.
+      * auto.
+  - (* has_key l x = false *)
+    unfold merge. set (new_l := merge_aux_l l s f).
+    assert (list_to_map l x = default). {
+      induction l.
+      + auto.
+      + simpl. destruct a as [hd1 hd2]. unfold t_update.
+        simpl in Heqb. destruct (beq_id hd1 x) eqn:?.
+        * discriminate.
+        * auto.
+    }
+    assert (list_to_map new_l x = default). {
+      subst new_l. clear H0. induction l.
+      + auto.
+      + simpl. destruct a as [hd1 hd2]. simpl. unfold t_update.
+        simpl in Heqb. destruct (beq_id hd1 x) eqn:?.
+        * discriminate.
+        * auto.
+    }
+    clearbody new_l.
+    induction s.
+    + simpl. unfold t_empty. congruence.
+    + simpl. destruct a as [hd1 hd2].
+      destruct (has_key l hd1) eqn:?.
+      * unfold t_update.
+        destruct (beq_id hd1 x) eqn:?.
+        -- rewrite beq_id_true_iff in *. congruence.
+        -- auto.
+      * simpl. unfold t_update.
+        destruct (beq_id hd1 x) eqn:?.
+        -- rewrite beq_id_true_iff in *. congruence.
+        -- auto.
+Qed.
+
 End List_map.
 
 Definition assertion : Type := option (list_map interval).
-
-Definition default_interval : interval := IInterval (Some 0) (Some 0).
-
-Definition empty_interval : interval := IInterval (Some 1) (Some 0).
 
 Definition bottom : assertion := None.
 
@@ -218,5 +331,37 @@ Proof.
   intros. intro x.
   apply H. apply H0.
 Qed.
+
+Definition join (s1 s2 : assertion) (widen : interval -> interval -> interval) : assertion :=
+  match s1, s2 with
+  | None, _ => s2
+  | _, None => s1
+  | Some l1, Some l2 =>
+    Some (merge _ default_interval l1 l2 widen)
+  end.
+
+
+
+Theorem join_spec : forall (s1 s2 : assertion) (widen : interval -> interval -> interval),
+  widen default_interval default_interval = default_interval ->
+  (forall x y, Interval.le x (widen x y)) ->
+  (forall x y, Interval.le y (widen x y)) ->
+  le s1 (join s1 s2 widen) /\ le s2 (join s1 s2 widen).
+Proof.
+  intros ? ? ? Hdefault Hwidenl Hwidenr.
+  unfold le, join.
+  destruct s1 as [l1 | ]; destruct s2 as [l2 | ];
+  split; intros; simpl; unfold t_empty;
+  try apply empty_interval_le_all;
+  try apply interval_le_refl;
+  unfold list_assertion_to_map;
+  rewrite merge_spec; auto.
+Qed.
+
+
+
+
+
+
 
 

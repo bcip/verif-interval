@@ -3,6 +3,16 @@ Require Import Program.
 Require Import Interval.
 Require Import Assertion.
 Require Import Annotation.
+Require Import Coq.Arith.Arith.
+Require Import Coq.omega.Omega.
+Open Scope Z_scope.
+
+(* In argument initial, only precondition and program inside
+  effect result (expecting other assertions are not greater
+  than assertions in the same positions in result. These
+  assertions in middle are expected to provide results from
+  previous iterations, which reduce repeated work to guarantee
+  algorithm complexity. *)
 
 Ltac interval_analysis_solver initial :=
   let solver initial :=
@@ -24,7 +34,6 @@ Ltac interval_analysis_solver initial :=
   in
   solver initial.
 
-
 Fixpoint initial_annotation' (c : com) : annotation' :=
   match c with
   | CSkip => ASkip bottom
@@ -38,7 +47,7 @@ Definition initial_annotation (s : assertion) (c : com) : annotation :=
   APre s (initial_annotation' c).
 
 Ltac interval_analysis initial :=
-  interval_analysis_solver initial.
+  refine (step_valid_valid _ ltac:(interval_analysis_solver initial)).
 
 Ltac interval_analysis0 :=
   interval_analysis default.

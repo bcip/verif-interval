@@ -639,7 +639,7 @@ Lemma eq_cond1_sound: forall (x y: interval) (n m:Z) (b:bool),
   include x n ->
   include y m ->
   Z.eqb n m = b ->
-  include (eq_cond1 x y b) m.
+  include (eq_cond1 x y b) n.
 Proof.
 
 Admitted.
@@ -651,7 +651,7 @@ Lemma eq_cond2_sound: forall (x y: interval) (n m:Z) (b:bool),
   include x n ->
   include y m ->
   Z.eqb n m = b ->
-  include (eq_cond2 x y b) n.
+  include (eq_cond2 x y b) m.
 Proof.
 
 Admitted.

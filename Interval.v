@@ -318,69 +318,92 @@ Proof.
   apply Z.max_le_compat; omega. omega.
 Qed.
 
+Lemma join_sound_x : forall (x y : interval) (n : Z),
+  include x n -> 
+  include (join x y) (n).
+Proof.
+  intros.
+  unfold include;
+  destruct x as [[] []];unfold join;
+  erewrite !include_non_empty by eauto;
+  destruct (emptyb y) eqn:?.
+  1,3,5,7: unfold include in *;split;auto;omega.
+  simpl; auto; unfold include in *; repeat split.
+  all: destruct y as [[] []]; split;auto.
+  
+  1,3: assert (Z.min z z1 <= Z.min n z1) by (apply Z.min_le_compat_r;omega).
+  1-2: assert (Z.min n z1 <= n) by apply Z.le_min_l; omega.
+
+  assert (Z.max n z2 <= Z.max z0 z2) by (apply Z.max_le_compat_r;omega).
+  assert (n <= Z.max n z2) by apply Z.le_max_l.
+  omega.
+  
+  assert (Z.max n z1 <= Z.max z0 z1) by (apply Z.max_le_compat_r;omega).
+  assert (n <= Z.max n z1) by apply Z.le_max_l.
+  omega.
+  
+  all: unfold include in *.
+  1-2: assert (Z.min z z0 <= Z.min n z0) by (apply Z.min_le_compat_r;omega).
+  1-2: assert (Z.min n z0 <= n) by apply Z.le_min_l; omega.
+
+  assert (Z.max n z1 <= Z.max z z1) by (apply Z.max_le_compat_r;omega).
+  assert (n <= Z.max n z1) by apply Z.le_max_l.
+  omega.
+  
+  assert (Z.max n z0 <= Z.max z z0) by (apply Z.max_le_compat_r;omega).
+  assert (n <= Z.max n z0) by apply Z.le_max_l.
+  omega.
+  
+Qed.
+
+Lemma join_sound_y : forall (x y : interval) (n : Z),
+  include y n -> 
+  include (join x y) (n).
+Proof.
+  intros.
+  unfold include, join;
+  destruct (emptyb x) eqn:?, y as [[] []].
+  1-4: split;unfold include in *; auto; omega.
+  all: erewrite !include_non_empty by eauto; 
+  destruct x as [[] []]; split;auto;
+  unfold include in *.
+  
+  1,3: assert (Z.min z1 z <= Z.min z1 n) by (apply Z.min_le_compat_l; omega).
+  1-2: assert (Z.min z1 n <= n) by apply Z.le_min_r; omega.
+
+  assert (Z.max z2 n <= Z.max z2 z0) by (apply Z.max_le_compat_l;omega).
+  assert (n <= Z.max z2 n) by apply Z.le_max_r.
+  omega.
+  
+  assert (Z.max z1 n <= Z.max z1 z0) by (apply Z.max_le_compat_l;omega).
+  assert (n <= Z.max z1 n) by apply Z.le_max_r.
+  omega.
+  
+  1-2: assert (Z.min z0 z <= Z.min z0 n) by (apply Z.min_le_compat_l;omega).
+  1-2: assert (Z.min z0 n <= n) by apply Z.le_min_r; omega.
+
+  assert (Z.max z1 n <= Z.max z1 z) by (apply Z.max_le_compat_l;omega).
+  assert (n <= Z.max z1 n) by apply Z.le_max_r.
+  omega.
+  
+  assert (Z.max z0 n <= Z.max z0 z) by (apply Z.max_le_compat_l;omega).
+  assert (n <= Z.max z0 n) by apply Z.le_max_r.
+  omega.
+  
+Qed.
+
 Lemma join_sound' : forall (x y : interval) (n m : Z),
   include x n ->
   include y m ->
   include (join x y) (n) /\ include (join x y) (m).
 Proof.
   intros.
-  split;
-  unfold include;
-  destruct x as [[] []], y as [[] []];
-  unfold join;
-  erewrite !include_non_empty by eauto;
-  simpl; auto; unfold include in *; repeat split.
-  assert (Z.min z z1 <= z).
-  apply Z.le_min_l.
-  omega.
-  assert (z0 <= Z.max z0 z2).
-  apply Z.le_max_l.
-  omega.
-  assert (Z.min z z1 <= z).
-  apply Z.le_min_l.
-  omega.
-  assert (z0 <= Z.max z0 z1).
-  apply Z.le_max_l.
-  omega.
-  assert (Z.min z z0 <= z).
-  apply Z.le_min_l.
-  omega.
-  assert (Z.min z z0 <= z).
-  apply Z.le_min_l.
-  omega.
-  assert (z <= Z.max z z1).
-  apply Z.le_max_l.
-  omega.
-  assert (z <= Z.max z z0).
-  apply Z.le_max_l.
-  omega.
-  assert (Z.min z z1 <= z1).
-  apply Z.le_min_r.
-  omega.
-  assert (z2 <= Z.max z0 z2).
-  apply Z.le_max_r.
-  omega.
-  assert (Z.min z z1 <= z1).
-  apply Z.le_min_r.
-  omega.
-  assert (z1 <= Z.max z0 z1).
-  apply Z.le_max_r.
-  omega.
-  assert (Z.min z z0 <= z0).
-  try apply Z.le_min_r.
-  try omega.
-  assert (Z.min z z0 <= z0).
-  apply Z.le_min_r.
-  omega.
-  assert (z1 <= Z.max z z1).
-  apply Z.le_max_r.
-  omega.
-  assert (z0 <= Z.max z z0).
-  apply Z.le_max_r.
-  omega.
+  split.
+  apply join_sound_x; auto.
+  apply join_sound_y; auto.
 Qed.
 
-(* TODO *)
+
 Lemma join_sound : forall (x y : interval),
   le x (join x y) /\ le y (join x y).
 Proof.
@@ -641,8 +664,19 @@ Lemma eq_cond1_sound: forall (x y: interval) (n m:Z) (b:bool),
   Z.eqb n m = b ->
   include (eq_cond1 x y b) n.
 Proof.
+intros;destruct b.
+assert (include y n).
+destruct y as [[] []];unfold include in *; try split; auto; try arith.
+unfold eq_cond1.
+apply meet_sound;auto.
 
-Admitted.
+unfold eq_cond1.
+destruct (n >? m) eqn:?.
+assert (include (gt_cond x y) n) by (eapply gt_cond_sound; eauto).
+apply join_sound_x;auto.
+assert (include (lt_cond x y) n) by (eapply lt_cond_sound; eauto; arith).
+apply join_sound_y;auto.
+Qed.
 
 Definition eq_cond2 (x y: interval) (b:bool):=
   eq_cond1 y x b.
@@ -653,8 +687,11 @@ Lemma eq_cond2_sound: forall (x y: interval) (n m:Z) (b:bool),
   Z.eqb n m = b ->
   include (eq_cond2 x y b) m.
 Proof.
-
-Admitted.
+intros.
+unfold eq_cond2.
+eapply eq_cond1_sound; eauto.
+rewrite Z.eqb_sym; auto.
+Qed.
 
 
 Definition is_nonnegb (x: interval) : bool :=

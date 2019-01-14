@@ -543,6 +543,27 @@ destruct y as [[] []];apply meet_sound;auto.
 all: unfold include in *;split;auto;omega.
 Qed.
 
+Definition lt_cond (x y: interval): interval :=
+  if (emptyb y) then x else
+    match y with
+    | IInterval ylo yhi => 
+      match yhi with
+      | None => x
+      | Some a => meet x (IInterval None (Some (a - 1)))
+      end
+    end.
+    
+Lemma lt_cond_sound : forall (x y: interval) (n m:Z),
+  include x n ->
+  include y m ->
+  n < m ->
+  include (lt_cond x y) n.
+Proof.
+intros; unfold lt_cond; erewrite !include_non_empty by eauto.
+destruct y as [[] []]; try apply meet_sound; auto.
+all: unfold include in *;split;auto;omega.
+Qed.
+
 Definition ge_cond (x y: interval): interval :=
   if (emptyb y) then x else
     match y with
@@ -557,6 +578,27 @@ Lemma ge_cond_sound : forall (x y: interval) (n m:Z),
 Proof.
 intros; unfold ge_cond; erewrite !include_non_empty by eauto.
 destruct y as [[] []];apply meet_sound;auto.
+all: unfold include in *;split;auto;omega.
+Qed.
+
+Definition gt_cond (x y: interval): interval :=
+  if (emptyb y) then x else
+    match y with
+    | IInterval ylo yhi => 
+      match ylo with
+      | None => x
+      | Some a => meet x (IInterval (Some (a - 1)) None)
+      end
+    end.
+    
+Lemma gt_cond_sound : forall (x y: interval) (n m:Z),
+  include x n ->
+  include y m ->
+  n > m ->
+  include (gt_cond x y) n.
+Proof.
+intros; unfold gt_cond; erewrite !include_non_empty by eauto.
+destruct y as [[] []]; try apply meet_sound; auto.
 all: unfold include in *;split;auto;omega.
 Qed.
 

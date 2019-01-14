@@ -170,6 +170,14 @@ Definition assertion_in_assertion (s1 : assertion) (s2 : assertion) :=
 
 Notation "s1 |== s2" := (assertion_in_assertion s1 s2) (at level 18).
 
+Lemma assertion_in_assertion_trans : forall (s s' s'' : assertion),
+  s |== s' ->
+  s' |== s'' ->
+  s |== s''.
+Proof.
+  unfold assertion_in_assertion. intros. auto.
+Qed.
+
 (* Operations on assertions *)
 
 Fixpoint list_leb (l1 l2 : list_map interval) : bool :=

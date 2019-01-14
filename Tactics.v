@@ -25,8 +25,12 @@ Require Import Coq.Program.Tactics.
   eapply proj1. apply join_sound.
 Qed. *)
 
+Definition update_precondition (A : annotation) (s : assertion) :=
+  match A with
+  | APre _ A' => APre s A'
+  end.
+
 Ltac solver' initial' :=
-  show_goal;
   let s :=
     match goal with
     | |- step_valid' ?s _ => eval compute in s
@@ -35,19 +39,45 @@ Ltac solver' initial' :=
   let initial' := eval compute in initial' in
   lazymatch initial' with
   | ASkip ?s' =>
-    let res := eval compute in (forward_skip s s') in
-    refine (forward_skip_valid s s' res _); reflexivity
+    refine (forward_skip_valid s s' _ _); compute; reflexivity
   | AAss ?x ?a1 ?s' =>
-    let res := eval compute in (forward_ass s x a1 s') in
-      refine (forward_ass_valid s x a1 s' res _); reflexivity (* TODO *)
+      refine (forward_ass_valid s x a1 s' _ _); compute; reflexivity
   | ASeq ?A1 ?A2 => refine (SVSeq s _ _ _ _); [solver' A1 | solver' A2]
-  | AIf ?b1 ?A1 ?A2 ?s' => idtac (* TODO *)
-  | AWhile ?b1 ?inv ?A ?s' => idtac (* TODO *)
+  | AIf ?b ?A1 ?A2 ?s' =>
+    let new_A1 := eval compute in (update_precondition A1 (forward_cond_true s b)) in
+    let new_A2 := eval compute in (update_precondition A2 (forward_cond_false s b)) in
+    refine (forward_if s b _ _ s' _ _ _ _ _ _); show_goal; [solver' A1 | solver' A2]
+  | AWhile ?b ?inv ?A ?s' => idtac (* TODO *)
   end.
 
 Ltac solver initial :=
+  let solver' initial' :=
+    let s :=
+      match goal with
+      | |- step_valid' ?s _ => eval compute in s
+      end
+    in
+    let initial' := eval compute in initial' in
+    lazymatch initial' with
+    | ASkip ?s' =>
+      refine (forward_skip_valid s s' _ _); compute; reflexivity
+    | AAss ?x ?a1 ?s' =>
+        refine (forward_ass_valid s x a1 s' _ _); compute; reflexivity
+    | ASeq ?A1 ?A2 => refine (SVSeq s _ _ _ _); [solver' A1 | solver' A2]
+    | AIf ?b ?A1 ?A2 ?s' =>
+      let new_A1 := constr:(update_precondition A1 (forward_cond_true s b)) in
+      let new_A2 := constr:(update_precondition A2 (forward_cond_false s b)) in
+      refine (forward_if s b _ _ s' _ _ _ _ _ _); show_goal;
+        [ solver new_A1
+        | solver new_A2
+        | apply forward_cond_true_valid; reflexivity
+        | apply forward_cond_false_valid; reflexivity
+        | compute; reflexivity ]; fail
+    | AWhile ?b ?inv ?A ?s' => idtac (* TODO *)
+    end
+  in
   let initial := eval compute in initial in
-  match initial with
+  lazymatch initial with
   APre ?s ?initial' =>
     refine (SVPre s _ _); solver' initial'
   end.
@@ -60,8 +90,8 @@ Fixpoint initial_annotation' (c : com) : annotation' :=
   | CSkip => ASkip bottom
   | CAss x a1 => AAss x a1 bottom
   | CSeq c1 c2 => ASeq (initial_annotation' c1) (initial_annotation' c2)
-  | CIf b1 c1 c2 => AIf b1 (APre bottom (initial_annotation' c1)) (APre bottom (initial_annotation' c2)) bottom
-  | CWhile b1 c => AWhile b1 bottom (APre None (initial_annotation' c)) bottom
+  | CIf b c1 c2 => AIf b (APre bottom (initial_annotation' c1)) (APre bottom (initial_annotation' c2)) bottom
+  | CWhile b c => AWhile b bottom (APre None (initial_annotation' c)) bottom
   end.
 
 Definition initial_annotation (s : assertion) (c : com) : annotation :=
@@ -79,22 +109,25 @@ Definition subtract_slowly_body : com :=
   Y ::= AMinus (AId Y) (ANum 1) ;;
   X ::= AMinus (AId X) (ANum 1).
 
-Definition test := ltac:(interval_analysis0 subtract_slowly_body).
-(* 
-test
+Definition sample_prog : com :=
+  X ::= ANum 2;;
+     IFB BLe (AId X) (ANum 1)
+       THEN Y ::= (ANum 3)
+       ELSE W ::= (ANum 4)
+     FI.
 
-Goal True.
-pose test. simpl in v.
+Definition sample_prog2 : com :=
+     IFB BLe (AId X) (ANum 1)
+       THEN Y ::= (ANum 3)
+       ELSE W ::= (ANum 4)
+     FI.
 
-Definition test : step_valid _ :=
-  ltac:(interval_analysis_solver (APre (Some nil) (AAss (Id "X") (APlus (AId (Id "X")) (ANum 2)) None))).
+Definition simple_if : com :=
+     IFB BLe (AId X) (ANum 1)
+       THEN SKIP
+       ELSE SKIP
+     FI.
 
-Definition test := ltac:(interval_analysis0 plus2).
+(* Definition test := ltac:(interval_analysis0 sample_prog). *)
 
-
-
-
-
-plus2
-Search com.
-*)
+(* Check test. *)

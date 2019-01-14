@@ -377,7 +377,34 @@ Proof.
   all: intros; pose (Interval.widen_sound x y); tauto.
 Admitted.
 
+Definition assign (s : assertion) (x : id) (r : interval) : assertion :=
+  if emptyb r
+  then None
+  else
+    match s with
+    | None => None
+    | Some l => Some (update _ l x r)
+    end.
 
-
+Theorem assign_sound : forall (s : assertion) (x : id) (r : interval) (st : state) (n : Z),
+  st |= s ->
+  include r n ->
+  t_update st x n |= assign s x r.
+Proof.
+  intros. intro y.
+  unfold assign.
+  destruct (emptyb r) eqn:?.
+  - (* emptyb r = true *)
+    pose (include_non_empty r n ltac:(auto)). congruence.
+  - (* emptyb r = false *)
+    destruct s; simpl.
+    + (* s = Some l *)
+      unfold list_assertion_to_map. rewrite update_spec.
+      unfold t_update. destruct (beq_id x y).
+      * auto.
+      * apply H.
+    + (* s = None *)
+      specialize (H x). simpl in H. omega.
+Qed.
 
 

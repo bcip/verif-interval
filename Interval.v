@@ -369,11 +369,109 @@ Proof.
   omega.
 Qed.
 
+(* TODO *)
 Lemma join_sound : forall (x y : interval),
   le x (join x y) /\ le y (join x y).
 Proof.
-  intros; split; do 2 intro.
-Admitted.
+  intros; split; do 2 intro;
+  unfold include;
+  destruct x as [[] []], y as [[] []];
+  unfold join;
+  try erewrite !include_non_empty by eauto;
+  unfold emptyb;
+  unfold include in *.
+  
+  destruct (z2 <? z1);auto;split; auto.
+  assert (Z.min z z1 <= Z.min n z1).
+  apply Z.min_le_compat_r;omega.
+  assert (Z.min n z1 <= n) by apply Z.le_min_l.
+  omega.
+  assert (Z.max n z2 <= Z.max z0 z2).
+  apply Z.max_le_compat_r;omega.
+  assert (n <= Z.max n z2) by apply Z.le_max_l.
+  omega.
+  1-3: split;auto.
+  assert (Z.min z z1 <= Z.min n z1).
+  apply Z.min_le_compat_r;omega.
+  assert (Z.min n z1 <= n) by apply Z.le_min_l.
+  omega.
+  assert (Z.max n z1 <= Z.max z0 z1).
+  apply Z.max_le_compat_r;omega.
+  assert (n <= Z.max n z1) by apply Z.le_max_l.
+  omega.
+  
+  destruct (z1 <? z0);auto.
+  1-4:split;auto.
+  assert (Z.min z z0 <= Z.min n z0).
+  apply Z.min_le_compat_r;omega.
+  assert (Z.min n z0 <= n) by apply Z.le_min_l.
+  omega.
+  assert (Z.min z z0 <= Z.min n z0).
+  apply Z.min_le_compat_r;omega.
+  assert (Z.min n z0 <= n) by apply Z.le_min_l.
+  omega.
+  
+  destruct (z1 <? z0);auto.
+  1-4:split;auto.
+  assert (Z.max n z1 <= Z.max z z1).
+  apply Z.max_le_compat_r;omega.
+  assert (n <= Z.max n z1) by apply Z.le_max_l.
+  omega.
+  assert (Z.max n z0 <= Z.max z z0).
+  apply Z.max_le_compat_r;omega.
+  assert (n <= Z.max n z0) by apply Z.le_max_l.
+  omega.
+  
+  destruct (z0 <? z);auto.
+  1-3:split;auto.
+
+  
+  1-4: destruct (z0 <? z);auto.
+  assert (z2 <? z1 = false) by arith.
+  erewrite H0 by eauto.
+  split.
+  assert (Z.min z z1 <= Z.min z n).
+  apply Z.min_le_compat_l;omega.
+  assert (Z.min z n <= n) by apply Z.le_min_r.
+  omega.
+  assert (Z.max z0 n <= Z.max z0 z2).
+  apply Z.max_le_compat_l;omega.
+  assert (n <= Z.max z0 n) by apply Z.le_max_r.
+  omega.
+  1-2: split;auto.
+  assert (Z.min z z1 <= Z.min z n).
+  apply Z.min_le_compat_l;omega.
+  assert (Z.min z n <= n) by apply Z.le_min_r.
+  omega.
+  assert (Z.max z0 n <= Z.max z0 z1).
+  apply Z.max_le_compat_l;omega.
+  assert (n <= Z.max z0 n) by apply Z.le_max_r.
+  omega.
+  
+  1,5:assert (z1 <? z0 = false) by arith.
+  1-2:erewrite H0 by eauto.
+  1-8: split;auto.
+  assert (Z.min z z0 <= Z.min z n).
+  apply Z.min_le_compat_l;omega.
+  assert (Z.min z n <= n) by apply Z.le_min_r.
+  omega.
+  assert (Z.max z n <= Z.max z z1).
+  apply Z.max_le_compat_l;omega.
+  assert (n <= Z.max z n) by apply Z.le_max_r.
+  omega.
+  assert (Z.min z z0 <= Z.min z n).
+  apply Z.min_le_compat_l;omega.
+  assert (Z.min z n <= n) by apply Z.le_min_r.
+  omega.
+  assert (Z.max z n <= Z.max z z0).
+  apply Z.max_le_compat_l;omega.
+  assert (n <= Z.max z n) by apply Z.le_max_r.
+  omega.
+  
+  assert (z0 <? z = false) by arith.
+  erewrite H0 by eauto.
+  all: split;auto.
+Qed.
 
 Definition meet (x: interval) (y: interval) : interval :=
   if orb (emptyb x) (emptyb y) then bottom else
@@ -502,53 +600,257 @@ Proof.
   intros.
   unfold mul; destruct x as [[] []], y as [[] []];
   erewrite !include_non_empty by eauto; simpl;unfold include in H, H0.
-  assert (include (mul_const z (IInterval (Some z1) (Some z2))) (z * m)).
-  assert (include (IInterval (Some z1) (Some z2)) m).
-  unfold include in *; split; omega.
-  auto.
-  assert (include (mul_const z0 (IInterval (Some z1) (Some z2))) (z0 * m)).
-  assert (include (IInterval (Some z1) (Some z2)) m).
-  unfold include in *; split; omega.
-  auto.
+  
+  assert (include (mul_const z (IInterval (Some z1) (Some z2))) (z * m));
+  assert (include (IInterval (Some z1) (Some z2)) m) by 
+  (unfold include in *; split; omega); auto.
+  assert (include (mul_const z0 (IInterval (Some z1) (Some z2))) (z0 * m));
+  assert (include (IInterval (Some z1) (Some z2)) m) by
+  (unfold include in *; split; omega);auto.
+  
   assert ((Z.min (z * m) (z0 * m)) <= n*m <=(Z.max (z * m) (z0 * m))).
   destruct (m >? 0) eqn:?.
-  
   assert ( (z * m) <= (n* m) <= (z0 * m));split.
-  apply Zmult_lt_0_le_compat_r; arith. 
-  apply Zmult_lt_0_le_compat_r; arith. 
-  assert (Z.min (n * m) (z0 * m) <= n * m). 
-  apply Z.le_min_l.
+  1-2: apply Zmult_lt_0_le_compat_r; arith. 
+  assert (Z.min (n * m) (z0 * m) <= n * m) by apply Z.le_min_l.
   assert (Z.min (z * m) (z0 * m) <= Z.min (n * m) (z0 * m)).
-  apply Z.min_le_compat_r.
+  apply Z.min_le_compat_r;arith.
   arith.
-  arith.
-  assert (n * m <= Z.max (z * m) (n * m)). 
-  apply Z.le_max_r.
+  assert (n * m <= Z.max (z * m) (n * m)) by apply Z.le_max_r.
   assert (Z.max (z * m) (n * m) <= Z.max (z * m) (z0 * m)).
-  apply Z.max_le_compat_l.
+  apply Z.max_le_compat_l;arith.
   arith.
-  arith.
-  
   assert ( (z0 * m) <= (n* m) <= (z * m));split.
-  apply Z.mul_le_mono_nonpos_r; arith.
-  apply Z.mul_le_mono_nonpos_r; arith.
-  assert (Z.min (z * m) (n * m) <= n * m). 
-  apply Z.le_min_r.
+  1-2: apply Z.mul_le_mono_nonpos_r; arith.
+  assert (Z.min (z * m) (n * m) <= n * m) by apply Z.le_min_r.
   assert (Z.min (z * m) (z0 * m) <= Z.min (z * m) (n * m) ).
-  apply Z.min_le_compat_l.
-  arith.
+  apply Z.min_le_compat_l;arith.
   arith.
   assert (n * m <= Z.max (n * m) (z0 * m)) by apply Z.le_max_l.
   assert (Z.max (n * m) (z0 * m) <= Z.max (z * m) (z0 * m)).
-  apply Z.max_le_compat_r.
+  apply Z.max_le_compat_r; arith.
   arith.
-  arith.
-
   eauto.
   
+  assert (include (mul_const z0 (IInterval (Some z1) None)) (z0 * m));
+  assert (include (IInterval (Some z1) None) m) by 
+  (unfold include; auto);auto.
+  assert (include (mul_const z (IInterval (Some z1) None)) (z * m));
+  assert (include (IInterval (Some z1) None) m) by
+  (unfold include; auto);auto.
   
-  Search (_* _<= _ *_).
-Admitted.
+  assert ((Z.min (z * m) (z0 * m)) <= n*m <=(Z.max (z * m) (z0 * m))).
+  destruct (m >? 0) eqn:?.
+  assert ( (z * m) <= (n* m) <= (z0 * m));split.
+  1-2: apply Zmult_lt_0_le_compat_r; arith. 
+  assert (Z.min (n * m) (z0 * m) <= n * m) by apply Z.le_min_l.
+  assert (Z.min (z * m) (z0 * m) <= Z.min (n * m) (z0 * m)).
+  apply Z.min_le_compat_r;arith.
+  arith.
+  assert (n * m <= Z.max (z * m) (n * m)) by apply Z.le_max_r.
+  assert (Z.max (z * m) (n * m) <= Z.max (z * m) (z0 * m)).
+  apply Z.max_le_compat_l;arith.
+  arith.
+  assert ( (z0 * m) <= (n* m) <= (z * m));split.
+  1-2: apply Z.mul_le_mono_nonpos_r; arith.
+  assert (Z.min (z * m) (n * m) <= n * m) by apply Z.le_min_r.
+  assert (Z.min (z * m) (z0 * m) <= Z.min (z * m) (n * m) ).
+  apply Z.min_le_compat_l;arith.
+  arith.
+  assert (n * m <= Z.max (n * m) (z0 * m)) by apply Z.le_max_l.
+  assert (Z.max (n * m) (z0 * m) <= Z.max (z * m) (z0 * m)).
+  apply Z.max_le_compat_r; arith.
+  arith.
+  eauto.
+  
+  assert (include (mul_const z (IInterval None (Some z1))) (z * m));
+  assert (include (IInterval None (Some z1)) m) by 
+  (unfold include; auto);auto.
+  assert (include (mul_const z0 (IInterval None (Some z1))) (z0 * m));
+  assert (include (IInterval None (Some z1)) m) by
+  (unfold include; auto);auto.
+
+  assert ((Z.min (z * m) (z0 * m)) <= n*m <=(Z.max (z * m) (z0 * m))).
+  destruct (m >? 0) eqn:?.
+  assert ( (z * m) <= (n* m) <= (z0 * m));split.
+  1-2: apply Zmult_lt_0_le_compat_r; arith. 
+  assert (Z.min (n * m) (z0 * m) <= n * m) by apply Z.le_min_l.
+  assert (Z.min (z * m) (z0 * m) <= Z.min (n * m) (z0 * m)).
+  apply Z.min_le_compat_r;arith.
+  arith.
+  assert (n * m <= Z.max (z * m) (n * m)) by apply Z.le_max_r.
+  assert (Z.max (z * m) (n * m) <= Z.max (z * m) (z0 * m)).
+  apply Z.max_le_compat_l;arith.
+  arith.
+  assert ( (z0 * m) <= (n* m) <= (z * m));split.
+  1-2: apply Z.mul_le_mono_nonpos_r; arith.
+  assert (Z.min (z * m) (n * m) <= n * m) by apply Z.le_min_r.
+  assert (Z.min (z * m) (z0 * m) <= Z.min (z * m) (n * m) ).
+  apply Z.min_le_compat_l;arith.
+  arith.
+  assert (n * m <= Z.max (n * m) (z0 * m)) by apply Z.le_max_l.
+  assert (Z.max (n * m) (z0 * m) <= Z.max (z * m) (z0 * m)).
+  apply Z.max_le_compat_r; arith.
+  arith.
+  eauto.
+  
+  assert (include (mul_const z (IInterval None None)) (z * m));
+  assert (include (IInterval None None) m) by 
+  (unfold include; auto);auto.
+  assert (include (mul_const z0 (IInterval None None)) (z0 * m));
+  assert (include (IInterval None None) m) by
+  (unfold include; auto);auto.
+
+  assert ((Z.min (z * m) (z0 * m)) <= n*m <=(Z.max (z * m) (z0 * m))).
+  destruct (m >? 0) eqn:?.
+  assert ( (z * m) <= (n* m) <= (z0 * m));split.
+  1-2: apply Zmult_lt_0_le_compat_r; arith. 
+  assert (Z.min (n * m) (z0 * m) <= n * m) by apply Z.le_min_l.
+  assert (Z.min (z * m) (z0 * m) <= Z.min (n * m) (z0 * m)).
+  apply Z.min_le_compat_r;arith.
+  arith.
+  assert (n * m <= Z.max (z * m) (n * m)) by apply Z.le_max_r.
+  assert (Z.max (z * m) (n * m) <= Z.max (z * m) (z0 * m)).
+  apply Z.max_le_compat_l;arith.
+  arith.
+  assert ( (z0 * m) <= (n* m) <= (z * m));split.
+  1-2: apply Z.mul_le_mono_nonpos_r; arith.
+  assert (Z.min (z * m) (n * m) <= n * m) by apply Z.le_min_r.
+  assert (Z.min (z * m) (z0 * m) <= Z.min (z * m) (n * m) ).
+  apply Z.min_le_compat_l;arith.
+  arith.
+  assert (n * m <= Z.max (n * m) (z0 * m)) by apply Z.le_max_l.
+  assert (Z.max (n * m) (z0 * m) <= Z.max (z * m) (z0 * m)).
+  apply Z.max_le_compat_r; arith.
+  arith.
+  eauto.
+  
+  all: unfold include.
+  destruct (z1 <=? 0) eqn:?.
+  unfold mul_const;unfold emptyb.
+  assert (z1 <? z0 = false) by arith.
+  erewrite H1 by eauto.
+  destruct (z =? 0) eqn:?.
+  assert (0 <= n) by arith.
+  assert (m <=0) by arith.
+  assert (n*m <=0) by (apply Z.mul_nonneg_nonpos;arith).
+  split;auto;omega.
+  destruct (z >? 0) eqn:?; split; auto.
+  assert (z1 * n <= z1 * z) by (apply Z.mul_le_mono_nonpos_l;arith).
+  assert (m * n <= z1 * n) by (apply Zmult_gt_0_le_compat_r; arith).
+  1-2: assert ( n * m = m * n) by apply Z.mul_comm.
+  omega.
+  
+  assert (z0 * n <= z0 * z) by (apply Z.mul_le_mono_nonpos_l;arith).
+  destruct ( n >?0) eqn:?.
+  assert (m*n <= 0) by (apply Z.mul_nonpos_nonneg; arith).
+  assert ( 0 <= z0 * z)by (apply Z.mul_nonpos_nonpos; arith).
+  omega.
+  assert (m * n <= z0 * n) by (apply Z.mul_le_mono_nonpos_r;arith).
+  omega.
+  
+  1-2: destruct (0 <=? z0) eqn:?;
+  unfold mul_const;unfold emptyb.
+  assert (z1 <? z0 = false) by arith.
+  erewrite H1 by eauto.
+  
+  destruct (z =? 0) eqn:?.
+  assert (0 <= n) by arith.
+  split;auto.
+  apply Z.mul_nonneg_nonneg;arith.
+  destruct (z >? 0) eqn:?; split; auto.
+  1-2: assert ( n * m = m * n) by apply Z.mul_comm.
+  assert (z0 * z <= m * z) by (apply Z.mul_le_mono_nonneg_r; arith).
+  assert (m * z <= m *n) by (apply Z.mul_le_mono_nonneg_l; arith).
+  arith.
+  assert (z1 * z <= m * z) by (apply Z.mul_le_mono_neg_r; arith).
+  assert (m * z <= m *n) by (apply Z.mul_le_mono_nonneg_l; arith).
+  arith.
+  
+  unfold top;split;auto.
+  
+  destruct (z =? 0) eqn:?.
+  assert (0 <= n) by arith.
+  unfold include;split;auto.
+  apply Z.mul_nonneg_nonneg;arith.
+  
+  destruct (z >? 0) eqn:?; split; auto.
+  assert ( n * m = m * n) by apply Z.mul_comm.
+  assert (z0 * z <= m * z) by (apply Z.mul_le_mono_nonneg_r; arith).
+  assert (m * z <= m *n) by (apply Z.mul_le_mono_nonneg_l; arith).
+  arith.
+  
+  unfold top;split;auto.
+  
+  1,5: destruct (z0 <=? 0) eqn:?.
+  6-7: destruct (0 <=? z0) eqn:?.
+  2,4,9: unfold top;split;auto.
+  3,7-11: split;auto.
+  4: destruct (z1 <=? 0) eqn:?.
+  all: unfold mul_const; unfold emptyb.
+  5: unfold top;split;auto.
+  
+  1,2,5: destruct (z =? 0) eqn:?.
+  1,3,5: split;auto.
+  apply Z.mul_nonneg_nonpos;arith.
+  apply Z.mul_nonpos_nonpos;arith.
+  apply Z.mul_nonpos_nonneg;arith.
+  1-3: destruct (z >? 0) eqn:?.
+  1-6: split; auto.
+  
+  1-3: assert ( n * m = m * n) by apply Z.mul_comm.
+  assert (m * n <= z0 * n <= z0 * z).
+  split.
+  apply Z.mul_le_mono_nonneg_r; arith.
+  apply Z.mul_le_mono_nonpos_l; arith.
+  omega.
+  assert (z0 * z <= z0 * n <= m * n).
+  split.
+  apply Z.mul_le_mono_nonpos_l; arith.
+  apply Z.mul_le_mono_nonpos_r; arith.
+  omega.
+  assert (m * n <= z0 * n <= z0 * z).
+  split.
+  apply Z.mul_le_mono_nonpos_r; arith.
+  apply Z.mul_le_mono_nonneg_l; arith.
+  omega.
+  
+  all: assert (z1 <? z0 = false) by arith.
+  all: erewrite H1 by eauto.
+  all: destruct (z =? 0) eqn:?.
+  1,3: split;auto.
+  apply Z.mul_nonpos_nonneg;arith.
+  apply Z.mul_nonpos_nonpos;arith.
+  all:destruct (z >? 0) eqn:?.
+  all: split;auto.
+  all: assert ( n * m = m * n) by apply Z.mul_comm.
+  
+  assert (m * n <= m * z <= z1 * z).
+  split.
+  apply Z.mul_le_mono_nonneg_l; arith.
+  apply Z.mul_le_mono_nonneg_r; arith.
+  omega.
+  
+  assert (m * n <= m * z <= z0 * z).
+  split.
+  apply Z.mul_le_mono_nonneg_l; arith.
+  apply Z.mul_le_mono_nonpos_r; arith.
+  omega.
+  
+
+  assert (z0 * z <= m * z <=  m * n ).
+  split.
+  apply Z.mul_le_mono_nonneg_r; arith.
+  apply Z.mul_le_mono_nonpos_l; arith.
+  omega.
+  
+  assert (z1 * z <= m * z <=  m * n ).
+  split.
+  apply Z.mul_le_mono_nonpos_r; arith.
+  apply Z.mul_le_mono_nonpos_l; arith.
+  omega.
+  
+Qed.
   
 (* Same as inb
 Definition elem (a: Z) (x: interval) : bool :=
@@ -594,13 +896,95 @@ Definition abs (x: interval) : interval :=
 
 (* TODO abs_sound *)
 
-
-Definition widen (x y : interval) : interval.
-Admitted.
+    
+Definition widen (x y : interval) : interval:=
+  if emptyb x then y
+  else if emptyb y then x
+  else match x,y with
+    | IInterval xlo xhi, IInterval ylo yhi =>
+      let lower := match xlo, ylo with
+      | Some a, Some b => 
+        if b <? a then None
+        else Some a
+      | _,_ => None
+      end
+      in
+      let upper := match xhi, yhi with
+      | Some a, Some b => 
+        if a <? b then None
+        else Some a
+      | _,_ => None
+      end
+      in
+      IInterval lower upper
+    end.
+    
+Eval compute in widen (IInterval None (Some 2)) (IInterval (Some 1) (Some 2)).
+    
 
 Lemma widen_sound : forall x y : interval,
   le x (widen x y) /\ le y (widen x y).
-Admitted.
+Proof.
+  intros; split; do 2 intro;
+  unfold include;
+  destruct x as [[] []], y as [[] []];
+  unfold widen;
+  try erewrite !include_non_empty by eauto;
+  unfold emptyb;
+  unfold include in *.
+  destruct (z2 <? z1);auto;split; auto.
+  destruct (z1 <? z) ;auto;omega.
+  destruct (z0 <? z2);auto;omega.
+  destruct (z1 <? z);split;auto;omega.
+  split;auto.
+  destruct (z0 <? z1) eqn:?;auto;omega.
+  split;auto.
+  
+  destruct (z1 <? z0);split;auto. omega.
+  1-2: destruct (z0 <? z);auto. omega.
+  1-2: split; auto.
+  
+  destruct (z1 <? z0);split;auto. omega.
+  
+  destruct (z <? z1);auto;omega.
+  1-3: split;auto.
+  
+  destruct (z <? z0);auto;omega.
+  
+  destruct (z0 <? z).
+  1-5: split;auto.
+  
+  1-4: destruct (z0 <? z).
+  auto.
+  
+  assert (z2 <? z1 = false) by arith.
+  erewrite H0 by eauto.
+  
+  all: try split;auto.
+  
+  destruct (z1 <? z) eqn:?; auto.
+  arith.
+  
+  destruct (z0 <? z2)eqn:?;auto. 
+  1-2: arith.
+
+  destruct (z1 <? z) eqn:?; auto.
+  1-2: arith.
+
+  destruct (z0 <? z1)eqn:?;auto. 
+  arith.
+
+  1,3: assert (z1 <? z0 = false) by arith.
+  1-2: erewrite H0 by eauto.
+  2: split;auto.
+  
+  1,3,5: destruct (z0 <? z) eqn:?; try split; auto.
+  1-2: arith.
+  
+  destruct (z <? z1) eqn:?;auto. arith.
+  
+  destruct (z <? z0)eqn:?;auto. arith.
+Qed.
 
 (*TODO <-*)
 Lemma leb_le : forall x y : interval,
@@ -657,12 +1041,24 @@ Definition default_interval : interval := IInterval (Some 0) (Some 0).
 Definition empty_interval : interval := IInterval (Some 1) (Some 0).
 
 Lemma empty_interval_le_all : forall (x : interval),
-  Interval.le empty_interval x.
-Admitted.
+  le empty_interval x.
+Proof.
+unfold le;unfold empty_interval;unfold include.
+intros.
+assert (1 <= 0) by omega.
+assert (0 < 1) by omega.
+contradiction.
+Qed.
+
 
 Lemma interval_le_refl : forall (x : interval),
-  Interval.le x x.
-Admitted.
+  le x x.
+Proof.
+intro.
+unfold le.
+intros.
+auto.
+Qed.
 
 
 

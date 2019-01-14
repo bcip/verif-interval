@@ -525,6 +525,41 @@ Proof.
   all: (unfold include in *; omega).
 Qed.
 
+(* given a <= b, and a in x, b in y, update the interval of a*)
+Definition le_cond (x y: interval): interval :=
+  if (emptyb y) then x else
+    match y with
+    | IInterval ylo yhi => meet x (IInterval None yhi)
+    end.
+
+Lemma le_cond_sound : forall (x y: interval) (n m:Z),
+  include x n ->
+  include y m ->
+  n <= m ->
+  include (le_cond x y) n.
+Proof.
+intros; unfold le_cond; erewrite !include_non_empty by eauto.
+destruct y as [[] []];apply meet_sound;auto.
+all: unfold include in *;split;auto;omega.
+Qed.
+
+Definition ge_cond (x y: interval): interval :=
+  if (emptyb y) then x else
+    match y with
+    | IInterval ylo yhi => meet x (IInterval ylo None)
+    end.
+
+Lemma ge_cond_sound : forall (x y: interval) (n m:Z),
+  include x n ->
+  include y m ->
+  n >= m ->
+  include (ge_cond x y) n.
+Proof.
+intros; unfold ge_cond; erewrite !include_non_empty by eauto.
+destruct y as [[] []];apply meet_sound;auto.
+all: unfold include in *;split;auto;omega.
+Qed.
+
 Definition is_nonnegb (x: interval) : bool :=
   match x with
   | IInterval xlo xhi =>

@@ -526,7 +526,7 @@ Proof.
 Qed.
 
 (* given a <= b, and a in x, b in y, update the interval of a*)
-Definition le_cond (x y: interval): interval :=
+Definition le_cond (x y: interval) : interval :=
   if (emptyb y) then x else
     match y with
     | IInterval ylo yhi => meet x (IInterval None yhi)
@@ -535,12 +535,12 @@ Definition le_cond (x y: interval): interval :=
 Lemma le_cond_sound : forall (x y: interval) (n m:Z),
   include x n ->
   include y m ->
-  n <= m ->
+  n <=? m = true ->
   include (le_cond x y) n.
 Proof.
 intros; unfold le_cond; erewrite !include_non_empty by eauto.
 destruct y as [[] []];apply meet_sound;auto.
-all: unfold include in *;split;auto;omega.
+all: unfold include in *;split;auto;arith.
 Qed.
 
 Definition lt_cond (x y: interval): interval :=
@@ -556,12 +556,12 @@ Definition lt_cond (x y: interval): interval :=
 Lemma lt_cond_sound : forall (x y: interval) (n m:Z),
   include x n ->
   include y m ->
-  n < m ->
+  n <? m = true->
   include (lt_cond x y) n.
 Proof.
 intros; unfold lt_cond; erewrite !include_non_empty by eauto.
 destruct y as [[] []]; try apply meet_sound; auto.
-all: unfold include in *;split;auto;omega.
+all: unfold include in *;split;auto;arith.
 Qed.
 
 Definition ge_cond (x y: interval): interval :=
@@ -573,12 +573,12 @@ Definition ge_cond (x y: interval): interval :=
 Lemma ge_cond_sound : forall (x y: interval) (n m:Z),
   include x n ->
   include y m ->
-  n >= m ->
+  n >=? m = true->
   include (ge_cond x y) n.
 Proof.
 intros; unfold ge_cond; erewrite !include_non_empty by eauto.
 destruct y as [[] []];apply meet_sound;auto.
-all: unfold include in *;split;auto;omega.
+all: unfold include in *;split;auto;arith.
 Qed.
 
 Definition gt_cond (x y: interval): interval :=
@@ -587,20 +587,75 @@ Definition gt_cond (x y: interval): interval :=
     | IInterval ylo yhi => 
       match ylo with
       | None => x
-      | Some a => meet x (IInterval (Some (a - 1)) None)
+      | Some a => meet x (IInterval (Some (a + 1)) None)
       end
     end.
     
 Lemma gt_cond_sound : forall (x y: interval) (n m:Z),
   include x n ->
   include y m ->
-  n > m ->
+  n >? m = true->
   include (gt_cond x y) n.
 Proof.
 intros; unfold gt_cond; erewrite !include_non_empty by eauto.
 destruct y as [[] []]; try apply meet_sound; auto.
-all: unfold include in *;split;auto;omega.
+all: unfold include in *;split;auto;arith.
 Qed.
+
+Definition le_cond1 (x y: interval) (b:bool):=
+  if b then le_cond x y else gt_cond x y.
+
+Lemma le_cond1_sound: forall (x y: interval) (n m:Z) (b:bool),
+  include x n ->
+  include y m ->
+  Z.leb n m = b ->
+  include (le_cond1 x y b) n.
+Proof.
+intros.
+destruct b; unfold le_cond1.
+eapply le_cond_sound; eauto.
+eapply gt_cond_sound; eauto; arith.
+Qed.
+
+Definition le_cond2 (x y: interval) (b:bool):=
+  if b then ge_cond y x else lt_cond y x.
+
+Lemma le_cond2_sound: forall (x y: interval) (n m:Z) (b:bool),
+  include x n ->
+  include y m ->
+  Z.leb n m = b ->
+  include (le_cond2 x y b) m.
+Proof.
+intros.
+destruct b; unfold le_cond2.
+eapply ge_cond_sound; eauto; arith.
+eapply lt_cond_sound; eauto; arith.
+Qed.
+
+Definition eq_cond1 (x y: interval) (b:bool):=
+  if b then meet x y else join (gt_cond x y) (lt_cond x y).
+
+Lemma eq_cond1_sound: forall (x y: interval) (n m:Z) (b:bool),
+  include x n ->
+  include y m ->
+  Z.eqb n m = b ->
+  include (eq_cond1 x y b) m.
+Proof.
+
+Admitted.
+
+Definition eq_cond2 (x y: interval) (b:bool):=
+  eq_cond1 y x b.
+  
+Lemma eq_cond2_sound: forall (x y: interval) (n m:Z) (b:bool),
+  include x n ->
+  include y m ->
+  Z.eqb n m = b ->
+  include (eq_cond2 x y b) n.
+Proof.
+
+Admitted.
+
 
 Definition is_nonnegb (x: interval) : bool :=
   match x with

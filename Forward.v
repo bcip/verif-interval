@@ -154,3 +154,19 @@ Proof.
   - eapply proj2; eapply join_sound.
 Qed.
 
+Lemma forward_while (s : assertion) (b : bexp) (inv : assertion) (A : annotation) (s' : assertion) :
+  step_valid A ->
+  leb (postcondition A) inv = true ->
+  precondition A = forward_cond_true inv b ->
+  leb s inv = true ->
+  forall (res : assertion),
+  res = join s' (forward_cond_false inv b) ->
+  step_valid' s (AWhile b inv A res).
+Proof.
+  intros. apply SVWhile;
+  try (apply le_assertion_in_assertion; unfold le; apply leb_le); auto.
+  apply forward_cond_true_valid; auto.
+  intros. subst res. apply join_sound2.
+  eapply forward_cond_false_valid; auto.
+Qed.
+

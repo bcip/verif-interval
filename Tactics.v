@@ -1,11 +1,12 @@
+Require Import Coq.Arith.Arith.
+Require Import Coq.omega.Omega.
 Require Import Maps.
 Require Import Program.
 Require Import Interval.
 Require Import Assertion.
 Require Import Annotation.
 Require Import Forward.
-Require Import Coq.Arith.Arith.
-Require Import Coq.omega.Omega.
+
 Open Scope Z_scope.
 
 
@@ -19,17 +20,12 @@ Require Import Coq.Program.Tactics.
   algorithm complexity. *)
 
 
-
-(* Lemma forward_ass (s x a1 s' : assertion) : step_valid' s (AAss x a1 (join  s')).
-  apply SVSkip. apply le_assertion_in_assertion.
-  eapply proj1. apply join_sound.
-Qed. *)
-
 Definition update_precondition (A : annotation) (s : assertion) :=
   match A with
   | APre _ A' => APre s A'
   end.
 
+(* 
 Ltac solver' initial' :=
   let s :=
     match goal with
@@ -49,9 +45,30 @@ Ltac solver' initial' :=
     refine (forward_if s b _ _ s' _ _ _ _ _ _); show_goal; [solver' A1 | solver' A2]
   | AWhile ?b ?inv ?A ?s' => idtac (* TODO *)
   end.
+*)
 
 Ltac solver initial :=
-  let solver' initial' :=
+  let rec while_solver' s initial' :=
+    let initial' := eval compute in initial' in
+    lazymatch initial' with
+    | AWhile ?b ?inv ?A ?s' =>
+      let H := fresh "H" in
+      pose ltac:(solver constr:(update_precondition A (forward_cond_true inv b))) as H;
+      let new_A :=
+        lazymatch type of H with
+        | step_valid ?A => A
+        end
+      in
+      let new_post := eval compute in (postcondition new_A) in
+      let inv_hold := eval compute in (leb new_post inv) in
+      try (
+        refine (forward_while s b inv _ s' H _ _ _ _ _);
+        (compute; reflexivity) (* fail if (leb (postcondition A) inv) = false *)
+      );
+      while_solver' s (AWhile b (join_widen inv new_post) new_A s')
+    end
+  in
+  let rec solver' initial' :=
     let s :=
       match goal with
       | |- step_valid' ?s _ => eval compute in s
@@ -73,7 +90,8 @@ Ltac solver initial :=
         | apply forward_cond_true_valid; reflexivity
         | apply forward_cond_false_valid; reflexivity
         | compute; reflexivity ]; fail
-    | AWhile ?b ?inv ?A ?s' => idtac (* TODO *)
+    | AWhile ?b ?inv ?A ?s' =>
+      while_solver' s (AWhile b (join s inv) A s')
     end
   in
   let initial := eval compute in initial in
@@ -128,6 +146,12 @@ Definition simple_if : com :=
        ELSE SKIP
      FI.
 
-(* Definition test := ltac:(interval_analysis0 sample_prog). *)
+Definition subtract_slowly : com :=
+  X ::= ANum 5 ;;
+  WHILE BLe (ANum 0) (AId X) DO
+  subtract_slowly_body
+  END.
 
-(* Check test. *)
+Definition test := ltac:(interval_analysis0 subtract_slowly).
+
+Check test.

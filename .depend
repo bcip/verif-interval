@@ -2,12 +2,10 @@ Annotation.vo Annotation.glob Annotation.v.beautified: Annotation.v Maps.vo Prog
 Annotation.vio: Annotation.v Maps.vio Program.vio Assertion.vio
 Assertion.vo Assertion.glob Assertion.v.beautified: Assertion.v Maps.vo Program.vo Interval.vo
 Assertion.vio: Assertion.v Maps.vio Program.vio Interval.vio
-Forward.vo Forward.glob Forward.v.beautified: Forward.v Assertion.vo Annotation.vo IntervalEval.vo
-Forward.vio: Forward.v Assertion.vio Annotation.vio IntervalEval.vio
+Forward.vo Forward.glob Forward.v.beautified: Forward.v Interval.vo Assertion.vo Annotation.vo
+Forward.vio: Forward.v Interval.vio Assertion.vio Annotation.vio
 Interval.vo Interval.glob Interval.v.beautified: Interval.v
 Interval.vio: Interval.v
-IntervalEval.vo IntervalEval.glob IntervalEval.v.beautified: IntervalEval.v Maps.vo Program.vo Interval.vo
-IntervalEval.vio: IntervalEval.v Maps.vio Program.vio Interval.vio
 Maps.vo Maps.glob Maps.v.beautified: Maps.v
 Maps.vio: Maps.v
 Program.vo Program.glob Program.v.beautified: Program.v Maps.vo

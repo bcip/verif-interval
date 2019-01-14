@@ -368,8 +368,9 @@ Proof.
       * auto.
 Qed.
 
-Lemma leb_le : forall x s1 s2,
+Lemma leb_le : forall s1 s2,
   leb s1 s2 = true ->
+  forall x,
   Interval.le (assertion_to_map s1 x) (assertion_to_map s2 x).
 Proof.
   intros.

@@ -930,8 +930,6 @@ Definition widen (x y : interval) : interval:=
       IInterval lower upper
     end.
     
-Eval compute in widen (IInterval None (Some 2)) (IInterval (Some 1) (Some 2)).
-    
 
 Lemma widen_sound : forall x y : interval,
   le x (widen x y) /\ le y (widen x y).

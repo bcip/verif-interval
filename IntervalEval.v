@@ -14,4 +14,11 @@ Fixpoint int_aeval (st : id -> interval) (a : aexp) : interval :=
 Lemma int_aeval_sound: forall (st : state) (m : total_map interval) (a : aexp),
   (forall (x : id), include (m x) (st x)) ->
   include (int_aeval m a) (aeval st a).
-Admitted.
+Proof.
+intros. induction a.
+unfold int_aeval, aeval,include;split; apply BinInt.Z.le_refl.
+unfold int_aeval, aeval;auto.
+simpl; apply add_sound;auto.
+simpl; apply minus_sound;auto.
+simpl; apply mul_sound;auto.
+Qed.

@@ -197,6 +197,17 @@ Proof.
   unfold include in *; omega.
 Qed.
 
+Lemma minus_sound : forall (x y : interval) (n m : Z),
+  include x n ->
+  include y m ->
+  include (add x (neg y)) (n - m).
+Proof.
+intros.
+assert (n - m = n + (- m)) by omega.
+assert (include (neg y) (- m)) by (apply neg_sound;auto).
+apply add_sound;auto.
+Qed.
+
 Definition mul_const (k: Z) (x: interval) : interval :=
   if emptyb x then bottom 
   else if k =? 0 then IInterval (Some 0) (Some 0)

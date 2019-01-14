@@ -1,6 +1,28 @@
+Require Import Interval.
 Require Import Assertion.
 Require Import Annotation.
-Require Import IntervalEval.
+
+
+Fixpoint int_aeval (st : id -> interval) (a : aexp) : interval :=
+  match a with
+  | ANum n => IInterval (Some n) (Some n)
+  | AId x => st x
+  | APlus a1 a2 => Interval.add (int_aeval st a1) (int_aeval st a2)
+  | AMinus a1 a2  => Interval.add (int_aeval st a1) (Interval.neg (int_aeval st a2))
+  | AMult a1 a2 => Interval.mul (int_aeval st a1) (int_aeval st a2)
+  end.
+
+Lemma int_aeval_sound: forall (st : state) (m : total_map interval) (a : aexp),
+  (forall (x : id), include (m x) (st x)) ->
+  include (int_aeval m a) (aeval st a).
+Proof.
+  intros. induction a.
+  - unfold int_aeval, aeval, include; split; apply BinInt.Z.le_refl.
+  - unfold int_aeval, aeval; auto.
+  - simpl; apply add_sound; auto.
+  - simpl; apply minus_sound; auto.
+  - simpl; apply mul_sound; auto.
+Qed.
 
 Definition forward_skip (s s' : assertion) : assertion :=
   join s s'.
@@ -30,17 +52,74 @@ Proof.
     + apply int_aeval_sound. auto.
 Qed.
 
-(* TODO placeholder *)
-Definition forward_cond (s : assertion) (b : bexp) : assertion.
-Admitted.
+Definition get_id (a : aexp) : option id :=
+  match a with
+  | AId x => Some x
+  | _ => None
+  end.
 
-Lemma forward_cond_valid (s : assertion) (b : bexp) (res : assertion) :
-  res = forward_cond s b ->
-  (forall st : state, st |= s -> beval st b = true -> st |= res).
-Admitted.
+Definition forward_eq (s : assertion) (a1 a2 : aexp) (ans : bool) : assertion :=
+  let r1 := int_aeval (assertion_to_map s) a1 in
+  let r2 := int_aeval (assertion_to_map s) a2 in
+  eq_cond s (get_id a1) (get_id a2) r1 r2 ans.
+
+Definition forward_le (s : assertion) (a1 a2 : aexp) (ans : bool) : assertion :=
+  let r1 := int_aeval (assertion_to_map s) a1 in
+  let r2 := int_aeval (assertion_to_map s) a2 in
+  le_cond s (get_id a1) (get_id a2) r1 r2 ans.
+
+Fixpoint forward_cond (s : assertion) (b : bexp) (ans : bool) : assertion :=
+  match b with
+  | BTrue => if ans then s else None
+  | BFalse => if ans then None else s
+  | BEq a1 a2 => forward_eq s a1 a2 ans
+  | BLe a1 a2 => forward_le s a1 a2 ans
+  | BNot b' => forward_cond s b' (negb ans)
+  | BAnd b1 b2 =>
+    if ans
+    then meet (forward_cond s b1 true) (forward_cond s b2 true)
+    else join (forward_cond s b1 false) (forward_cond s b2 false)
+  | BOr b1 b2 =>
+    if ans
+    then join (forward_cond s b1 true) (forward_cond s b2 true)
+    else meet (forward_cond s b1 false) (forward_cond s b2 false)
+  end.
+
+Lemma join_sound1 : forall (s1 s2 : assertion),
+  s1 |== join s1 s2.
+Proof.
+  intros. apply le_assertion_in_assertion. eapply proj1, join_sound.
+Qed.
+
+Lemma join_sound2 : forall (s1 s2 : assertion),
+  s2 |== join s1 s2.
+Proof.
+  intros. apply le_assertion_in_assertion. eapply proj2, join_sound.
+Qed.
+
+Lemma forward_cond_valid (s : assertion) (b : bexp) (ans : bool) (res : assertion) :
+  res = forward_cond s b ans ->
+  (forall st : state, st |= s -> beval st b = ans -> st |= res).
+Proof.
+  intros. generalize dependent res. generalize dependent ans. induction b; intros; subst ans; simpl in *.
+  1, 2 : rewrite H; apply H0.
+  (* 3, 4 *)
+  1, 2 : unfold forward_eq, forward_le in *; subst res;
+    first [eapply eq_cond_sound | eapply le_cond_sound]; auto;
+    try (apply int_aeval_sound; auto);
+    try destruct a; try destruct a0; simpl; auto.
+  (* 5 *)
+  rewrite Bool.negb_involutive in *; eauto.
+  (* 6, 7 *)
+  all: specialize (IHb1 _ ltac:(reflexivity)); specialize (IHb2 _ ltac:(reflexivity)).
+  all : destruct (beval st b1) eqn:?; destruct (beval st b2) eqn:?; simpl in *;
+    subst res;
+    simple apply meet_sound + simple apply join_sound1 + simple apply join_sound2;
+    simple apply IHb1 + simple apply IHb2; match goal with |- ?A = ?B => constr_eq A B; reflexivity; fail 100 end.
+Qed.
 
 Definition forward_cond_true (s : assertion) (b : bexp) : assertion :=
-  forward_cond s b.
+  forward_cond s b true.
 
 Lemma forward_cond_true_valid (s : assertion) (b : bexp) (res : assertion) :
   res = forward_cond_true s b ->
@@ -50,16 +129,13 @@ Proof.
 Qed.
 
 Definition forward_cond_false (s : assertion) (b : bexp) : assertion :=
-  forward_cond s (BNot b).
+  forward_cond s b false.
 
 Lemma forward_cond_false_valid (s : assertion) (b : bexp) (res : assertion) :
   res = forward_cond_false s b ->
   (forall st : state, st |= s -> beval st b = false -> st |= res).
 Proof.
-  intros. assert (beval st (BNot b) = true). {
-    simpl. rewrite H1.  auto.
-  }
-  eapply forward_cond_valid with (b := (BNot b)); eauto.
+  apply forward_cond_valid.
 Qed.
 
 Lemma forward_if (s : assertion) (b : bexp) (A1 A2 : annotation) (s' : assertion) :

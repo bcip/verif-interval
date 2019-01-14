@@ -53,7 +53,8 @@ Inductive bexp : Type :=
   | BEq : aexp -> aexp -> bexp
   | BLe : aexp -> aexp -> bexp
   | BNot : bexp -> bexp
-  | BAnd : bexp -> bexp -> bexp.
+  | BAnd : bexp -> bexp -> bexp
+  | BOr : bexp -> bexp -> bexp.
 
 (* ================================================================= *)
 (** ** Evaluation *)
@@ -79,6 +80,7 @@ Fixpoint beval (st : state) (b : bexp) : bool :=
   | BLe a1 a2   => Z.leb (aeval st a1) (aeval st a2)
   | BNot b1     => negb (beval st b1)
   | BAnd b1 b2  => andb (beval st b1) (beval st b2)
+  | BOr b1 b2   => orb (beval st b1) (beval st b2)
   end.
 
 Example aexp1 :

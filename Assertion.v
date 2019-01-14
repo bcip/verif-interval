@@ -140,6 +140,104 @@ Proof.
         -- auto.
 Qed.
 
+(*
+Fixpoint merge_option_aux_l (l s : list_map) (f : A -> A -> option A) : option list_map :=
+  match l with
+    | nil => Some nil
+    | (hd1, hd2) :: tl =>
+      match f hd2 (list_to_map s hd1) with
+      | None => None
+      | Some new_hd2 =>
+        match merge_option_aux_l tl s f with
+        | None => None
+        | Some res =>
+          Some ((hd1, new_hd2) :: res)
+        end
+      end
+    end.
+
+Fixpoint merge_option_aux_s (l s : list_map) (f : A -> A -> option A) (new_l : option list_map): option list_map :=
+    match s with
+    | nil => new_l
+    | (hd1, hd2) :: tl =>
+      if has_key l hd1
+      then merge_option_aux_s l tl f new_l
+      else
+        match f default hd2 with
+        | None => None
+        | Some new_hd2 =>
+          match merge_option_aux_s l tl f new_l with
+          | None => None
+          | Some res =>
+            Some ((hd1, new_hd2) :: res)
+          end
+        end
+    end.
+
+Definition merge_option (l s : list_map) (f : A -> A -> option A) : option list_map :=
+  merge_option_aux_s l s f (merge_option_aux_l l s f).
+
+Theorem merge_option_spec : forall (l s : list_map) (f : A -> A -> option A),
+  f default default = Some default ->
+  (exists (x : id), f (list_to_map l x) (list_to_map s x) = None) /\ list_to_map (merge l s f) = None
+  \/
+  forall (x : id), f (list_to_map l x) (list_to_map s x) <> None) /\ list_to_map (merge l s f) = None
+  list_to_map (merge l s f) x = f (list_to_map l x) (list_to_map s x).
+Proof.
+  intros.
+  destruct (has_key l x) eqn:?.
+  - (* has_key l x = true *)
+    replace (list_to_map (merge l s f) x) with (list_to_map (merge_aux_l l s f) x). 2: {
+      unfold merge. set (new_l := merge_aux_l l s f). clearbody new_l.
+      induction s.
+      + auto.
+      + simpl. destruct a as [hd1 hd2].
+        destruct (has_key l hd1) eqn:?; auto.
+        simpl. unfold t_update.
+        destruct (beq_id hd1 x) eqn:?; auto.
+        rewrite beq_id_true_iff in *. congruence.
+    }
+    induction l.
+    + inversion Heqb.
+    + simpl. destruct a as [hd1 hd2]. simpl.
+      unfold t_update.
+      simpl in Heqb.
+      destruct (beq_id hd1 x) eqn:?.
+      * rewrite beq_id_true_iff in *. congruence.
+      * auto.
+  - (* has_key l x = false *)
+    unfold merge. set (new_l := merge_aux_l l s f).
+    assert (list_to_map l x = default). {
+      induction l.
+      + auto.
+      + simpl. destruct a as [hd1 hd2]. unfold t_update.
+        simpl in Heqb. destruct (beq_id hd1 x) eqn:?.
+        * discriminate.
+        * auto.
+    }
+    assert (list_to_map new_l x = default). {
+      subst new_l. clear H0. induction l.
+      + auto.
+      + simpl. destruct a as [hd1 hd2]. simpl. unfold t_update.
+        simpl in Heqb. destruct (beq_id hd1 x) eqn:?.
+        * discriminate.
+        * auto.
+    }
+    clearbody new_l.
+    induction s.
+    + simpl. unfold t_empty. congruence.
+    + simpl. destruct a as [hd1 hd2].
+      destruct (has_key l hd1) eqn:?.
+      * unfold t_update.
+        destruct (beq_id hd1 x) eqn:?.
+        -- rewrite beq_id_true_iff in *. congruence.
+        -- auto.
+      * simpl. unfold t_update.
+        destruct (beq_id hd1 x) eqn:?.
+        -- rewrite beq_id_true_iff in *. congruence.
+        -- auto.
+Qed. *)
+
 End List_map.
 
 Definition assertion : Type := option (list_map interval).
@@ -270,13 +368,6 @@ Proof.
       * auto.
 Qed.
 
-Ltac specialize_ H :=
-  match type of H with
-  | ?A -> ?B =>
-    let HA := fresh "H" in
-    assert A as HA; [ | specialize (H HA); clear HA]
-  end.
-
 Lemma leb_le : forall x s1 s2,
   leb s1 s2 = true ->
   Interval.le (assertion_to_map s1 x) (assertion_to_map s2 x).
@@ -354,8 +445,7 @@ Theorem join_base_sound : forall (s1 s2 : assertion) (f : interval -> interval -
   (forall x y, Interval.le y (f x y)) ->
   le s1 (join_base s1 s2 f) /\ le s2 (join_base s1 s2 f).
 Proof.
-  intros.
-  unfold le, join.
+  intros. unfold le.
   destruct s1 as [l1 | ]; destruct s2 as [l2 | ];
   split; intros; simpl; unfold t_empty;
   try apply empty_interval_le_all;
@@ -381,9 +471,101 @@ Theorem join_widen_sound : forall (s1 s2 : assertion),
   le s1 (join_widen s1 s2) /\ le s2 (join_widen s1 s2).
 Proof.
   intros. apply join_base_sound; auto.
-  admit.
   all: intros; pose (Interval.widen_sound x y); tauto.
-Admitted.
+Qed.
+
+Fixpoint has_empty (l s : list_map interval) : bool :=
+  match l with
+  | nil => false
+  | (hd1, hd2) :: tl => emptyb hd2 && negb (has_key _ s hd1) || has_empty tl ((hd1, hd2) :: s)
+  end.
+
+Definition rectify_empty (s : assertion) : assertion :=
+  match s with
+  | None => None
+  | Some l => if has_empty l nil then None else s
+  end.
+
+Lemma has_empty_exists_empty : forall (l s : list_map interval),
+  has_empty l s = true ->
+  exists (x : id),
+  (forall (n : Z), ~include (assertion_to_map (Some l) x) n) /\
+  has_key _ s x = false.
+Proof.
+  intros l. induction l; intros.
+  - inversion H.
+  - destruct a as [hd1 hd2]. simpl in H.
+    destruct (emptyb hd2 && negb (has_key interval s hd1)) eqn:?.
+    + destruct (emptyb hd2) eqn:?;
+      destruct (has_key interval s hd1) eqn:?; simpl in *; try congruence.
+      exists hd1. split; auto.
+      intros. unfold t_update; rewrite <- beq_id_refl. intro.
+      assert (emptyb hd2 = false) by (eapply include_non_empty; eauto).
+      congruence.
+    + apply orb_prop in H. destruct H; try discriminate.
+      specialize (IHl _ H).
+      destruct IHl as [x IHl]. exists x.
+      simpl in IHl. destruct IHl. destruct (beq_id hd1 x) eqn:?; try congruence.
+      split; auto.
+      intros. simpl. unfold t_update. rewrite Heqb0. auto.
+Qed.
+
+Lemma rectify_empty_sound : forall (s : assertion),
+  s |== (rectify_empty s).
+Proof.
+  intro;
+  destruct s as [l | ]; simpl; try destruct (has_empty l []) eqn:H;
+  try solve [apply le_assertion_in_assertion;
+    unfold le;
+    simpl; intros; unfold t_empty;
+    try rewrite H;
+    try apply interval_le_refl;
+    try apply empty_interval_le_all].
+  pose (has_empty_exists_empty _ _ H) as H0.
+  destruct H0 as [x []].
+  intros st Hst.
+  specialize (Hst x). exfalso. eapply H0. eauto.
+Qed.
+
+Definition meet (s1 s2 : assertion) : assertion :=
+  match s1, s2 with
+  | Some l1, Some l2 =>
+    rectify_empty (Some (merge _ default_interval l1 l2 Interval.meet))
+  | _, _ => None (* at least a None *)
+  end.
+
+Lemma bottom_implies_all : forall (s : assertion),
+  None |== s.
+Proof.
+  intros. apply le_assertion_in_assertion. unfold le.
+  intros. simpl. unfold t_empty. eapply empty_interval_le_all.
+Qed.
+
+Lemma merge_meet_sound : forall (l1 l2 : list_map interval),
+  forall (st : state),
+  st |= (Some l1) ->
+  st |= (Some l2) ->
+  st |= (Some (merge _ default_interval l1 l2 Interval.meet)).
+Proof.
+  intros. unfold state_in_assertion. simpl.
+  unfold list_assertion_to_map. intro x. rewrite merge_spec by auto.
+  apply meet_sound.
+  - apply H.
+  - apply H0.
+Qed.
+
+Theorem meet_sound : forall (s1 s2 : assertion),
+  forall (st : state),
+  st |= s1 ->
+  st |= s2 ->
+  st |= (meet s1 s2).
+Proof.
+  intros.
+  destruct s1 as [l1 | ]; destruct s2 as [l2 | ];
+  try (intro; specialize (H x); specialize (H0 x); simpl in *; omega).
+  unfold meet.
+  apply rectify_empty_sound, merge_meet_sound; auto.
+Qed.
 
 Definition assign (s : assertion) (x : id) (r : interval) : assertion :=
   if emptyb r
@@ -414,5 +596,123 @@ Proof.
     + (* s = None *)
       specialize (H x). simpl in H. omega.
 Qed.
+
+Lemma assign_sound2 : forall (s : assertion) (x : id) (r : interval) (st : state) (n : Z),
+  st |= s ->
+  include r n ->
+  st x = n ->
+  st |= assign s x r.
+Proof.
+  intros. intro y.
+  unfold assign.
+  destruct (emptyb r) eqn:?.
+  - (* emptyb r = true *)
+    pose (include_non_empty r n ltac:(auto)). congruence.
+  - (* emptyb r = false *)
+    destruct s; simpl.
+    + (* s = Some l *)
+      unfold list_assertion_to_map. rewrite update_spec.
+      unfold t_update. destruct (beq_id x y) eqn:?.
+      * rewrite beq_id_true_iff in *. subst y. congruence.
+      * apply H.
+    + (* s = None *)
+      specialize (H x). simpl in H. omega.
+Qed.
+
+Definition assign_option (s : assertion) (x : option id) (r : interval) : assertion :=
+  if emptyb r then None else
+  match x with
+  | None => s
+  | Some x => assign s x r
+  end.
+
+Definition mapsto_option (st : state) (x : option id) (n : Z) : Prop :=
+  match x with
+  | None => True
+  | Some x => st x = n
+  end.
+
+Lemma assign_option_sound : forall (s : assertion) (x : option id) (r : interval) (st : state) (n : Z),
+  st |= s ->
+  mapsto_option st x n ->
+  include r n ->
+  st |= assign_option s x r.
+Proof.
+  intros. assert (emptyb r = false). {
+    eapply include_non_empty; eauto.
+  }
+  destruct x; simpl in *; unfold assign_option; rewrite H2; auto.
+  eapply assign_sound2; eauto.
+Qed.
+
+Definition eq_cond (s : assertion) (x y : option id) (r1 r2 : interval) (ans : bool) : assertion :=
+  let new_r1 := Interval.eq_cond1 r1 r2 ans in
+  let new_r2 := Interval.eq_cond2 r1 r2 ans in
+  assign_option (assign_option s y new_r2) x new_r1.
+
+Lemma eq_cond_sound : forall (s : assertion) (x y : option id) (r1 r2 : interval) (ans : bool) (st : state) (n m : Z),
+  st |= s ->
+  mapsto_option st x n ->
+  mapsto_option st y m ->
+  include r1 n ->
+  include r2 m ->
+  n =? m = ans ->
+  st |= eq_cond s x y r1 r2 ans.
+Proof.
+  intros.
+  eapply assign_option_sound; eauto.
+  - eapply assign_option_sound; eauto.
+    eapply eq_cond2_sound; eauto.
+  - eapply eq_cond1_sound; eauto.
+Qed.
+
+Definition le_cond (s : assertion) (x y : option id) (r1 r2 : interval) (ans : bool) : assertion :=
+  let new_r1 := Interval.le_cond1 r1 r2 ans in
+  let new_r2 := Interval.le_cond2 r1 r2 ans in
+  assign_option (assign_option s y new_r2) x new_r1.
+
+Lemma le_cond_sound : forall (s : assertion) (x y : option id) (r1 r2 : interval) (ans : bool) (st : state) (n m : Z),
+  st |= s ->
+  mapsto_option st x n ->
+  mapsto_option st y m ->
+  include r1 n ->
+  include r2 m ->
+  n <=? m = ans ->
+  st |= le_cond s x y r1 r2 ans.
+Proof.
+  intros.
+  eapply assign_option_sound; eauto.
+  - eapply assign_option_sound; eauto.
+    eapply le_cond2_sound; eauto.
+  - eapply le_cond1_sound; eauto.
+Qed.
+
+(*
+Definition le_cond (s : assertion) (x : id) (y : interval) : assertion :=
+  assign s x (Interval.le_cond (assertion_to_map s x) y).
+
+Lemma le_cond_sound : forall (s : assertion) (x : id) (y : interval) (st : state) (n : Z),
+  include y n ->
+  st |= s ->
+  st x <=? n = true ->
+  st |= le_cond s x y.
+Proof.
+  intros. apply assign_sound2 with (n := st x); auto.
+  apply Interval.le_cond_sound with n; auto. arith.
+Qed.
+
+Definition ge_cond (s : assertion) (x : id) (y : interval) : assertion :=
+  assign s x (Interval.ge_cond (assertion_to_map s x) y).
+
+Lemma ge_cond_sound : forall (s : assertion) (x : id) (y : interval) (st : state) (n : Z),
+  include y n ->
+  st |= s ->
+  n <=? st x = true ->
+  st |= ge_cond s x y.
+Proof.
+  intros. apply assign_sound2 with (n := st x); auto.
+  apply Interval.ge_cond_sound with n; auto. arith.
+Qed.
+*)
 
 

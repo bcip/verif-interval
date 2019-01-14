@@ -1019,7 +1019,7 @@ unfold feq;intros; destruct H;split;auto.
 Qed.
 
 Lemma geb_ge : forall x y : interval,
-  geb x y = true <-> ge x y.
+  geb x y = true -> ge x y.
 Proof.
   intros.
   pose (leb_le y x).

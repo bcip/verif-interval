@@ -5,8 +5,8 @@ Require Import Coq.omega.Omega.
 Require Import Coq.Lists.List.
 Require Import Coq.Strings.String.
 Import ListNotations.
-Require Import Maps.
-Require Import Program.
+Require Export Maps.
+Require Export Program.
 Require Import Assertion.
 
 Open Scope Z_scope.
@@ -108,29 +108,29 @@ Inductive step_valid : annotation -> Prop :=
   with
   step_valid' : assertion -> annotation' -> Prop :=
   | SVSkip : forall s s',
-    (forall st, state_in_assertion st s -> state_in_assertion st s')
+    s |== s'
     -> step_valid' s (ASkip s')
   | SVAss : forall s x a s',
-    (forall st, state_in_assertion st s -> state_in_assertion (t_update st x (aeval st a)) s')
+    (forall st, st |= s -> (t_update st x (aeval st a)) |= s')
     -> step_valid' s (AAss x a s')
   | SVSeq : forall s A1 A2,
     step_valid' s A1 ->
     step_valid' (postcondition' A1) A2 ->
     step_valid' s (ASeq A1 A2)
   | SVIf : forall s b A1 A2 s',
-    (forall st, state_in_assertion st s -> beval st b = true -> state_in_assertion st (precondition A1)) ->
-    (forall st, state_in_assertion st s -> beval st b = false -> state_in_assertion st (precondition A2)) ->
+    (forall st, st |= s -> beval st b = true -> st |= (precondition A1)) ->
+    (forall st, st |= s -> beval st b = false -> st |= (precondition A2)) ->
     step_valid A1 ->
     step_valid A2 ->
-    (forall st, state_in_assertion st (postcondition A1) -> state_in_assertion st s') ->
-    (forall st, state_in_assertion st (postcondition A2) -> state_in_assertion st s') ->
+    (postcondition A1) |== s' ->
+    (postcondition A2) |== s' ->
     step_valid' s (AIf b A1 A2 s')
   | SVWhile : forall s b inv A s',
-    (forall st, state_in_assertion st s -> state_in_assertion st inv) ->
-    (forall st, state_in_assertion st inv -> beval st b = true -> state_in_assertion st (precondition A)) ->
-    (forall st, state_in_assertion st inv -> beval st b = false -> state_in_assertion st s') ->
+    s |== inv ->
+    (forall st, st |= inv -> beval st b = true -> st |= (precondition A)) ->
+    (forall st, st |= inv -> beval st b = false -> st |= s') ->
     step_valid A ->
-    (forall st, state_in_assertion st (postcondition A) -> state_in_assertion st inv) ->
+    (postcondition A) |== inv ->
     step_valid' s (AWhile b inv A s').
 
 Scheme step_valid_ind_2 := Minimality for step_valid Sort Prop

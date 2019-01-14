@@ -170,6 +170,14 @@ Definition assertion_in_assertion (s1 : assertion) (s2 : assertion) :=
 
 Notation "s1 |== s2" := (assertion_in_assertion s1 s2) (at level 18).
 
+Lemma assertion_in_assertion_trans : forall (s s' s'' : assertion),
+  s |== s' ->
+  s' |== s'' ->
+  s |== s''.
+Proof.
+  unfold assertion_in_assertion. intros. auto.
+Qed.
+
 (* Operations on assertions *)
 
 Fixpoint list_leb (l1 l2 : list_map interval) : bool :=
@@ -377,7 +385,34 @@ Proof.
   all: intros; pose (Interval.widen_sound x y); tauto.
 Admitted.
 
+Definition assign (s : assertion) (x : id) (r : interval) : assertion :=
+  if emptyb r
+  then None
+  else
+    match s with
+    | None => None
+    | Some l => Some (update _ l x r)
+    end.
 
-
+Theorem assign_sound : forall (s : assertion) (x : id) (r : interval) (st : state) (n : Z),
+  st |= s ->
+  include r n ->
+  t_update st x n |= assign s x r.
+Proof.
+  intros. intro y.
+  unfold assign.
+  destruct (emptyb r) eqn:?.
+  - (* emptyb r = true *)
+    pose (include_non_empty r n ltac:(auto)). congruence.
+  - (* emptyb r = false *)
+    destruct s; simpl.
+    + (* s = Some l *)
+      unfold list_assertion_to_map. rewrite update_spec.
+      unfold t_update. destruct (beq_id x y).
+      * auto.
+      * apply H.
+    + (* s = None *)
+      specialize (H x). simpl in H. omega.
+Qed.
 
 

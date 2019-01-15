@@ -123,10 +123,6 @@ Ltac interval_analysis0 prog :=
   interval_analysis (initial_annotation default prog).
 
 
-Definition subtract_slowly_body : com :=
-  Y ::= AMinus (AId Y) (ANum 1) ;;
-  X ::= AMinus (AId X) (ANum 1).
-
 Definition sample_prog : com :=
   X ::= ANum 2;;
      IFB BLe (AId X) (ANum 1)
@@ -146,12 +142,68 @@ Definition simple_if : com :=
        ELSE SKIP
      FI.
 
+
+Definition subtract_slowly_body : com :=
+  Y ::= AMinus (AId Y) (ANum 1) ;;
+  X ::= AMinus (AId X) (ANum 1).
+
 Definition subtract_slowly : com :=
   X ::= ANum 5 ;;
   WHILE BLe (ANum 0) (AId X) DO
   subtract_slowly_body
   END.
 
-Definition test := ltac:(interval_analysis0 subtract_slowly).
+Definition simple_if2 : com :=
+  X ::= ANum 10;;
+  IFB BLe (ANum 5) (AId X) 
+       THEN subtract_slowly_body
+       ELSE X ::= AMult (AId X) (ANum 2)
+     FI.
+  
+Definition if_while : com :=
+  X ::= ANum 10;;
+  IFB BLe (ANum 5) (AId X) 
+       THEN subtract_slowly
+       ELSE X ::= AMult (AId X) (ANum 2)
+     FI.
 
-Check test.
+Definition N := Id "N".
+Definition M := Id "M".
+
+Definition Fin_body : com :=
+  N ::= AMinus (AId N) (ANum 1) ;;
+  M ::= AId Y ;;
+  Y ::= APlus (AId X) (AId Y) ;;
+  X ::= AId M.
+
+Definition Fin : com :=
+  N ::= ANum 5;;
+  X ::= ANum 0 ;;
+  Y ::= ANum 1 ;;
+  WHILE BLe (ANum 1) (AId N) DO
+  Fin_body
+  END.
+  
+Definition test_sample_prog := 
+  ltac:(interval_analysis0 sample_prog).
+
+Definition test_sample_prog2 := 
+  ltac:(interval_analysis0 sample_prog2).
+  
+Definition test_simple_if :=
+  ltac:(interval_analysis0 simple_if).
+  
+Definition test_subtract_slowly := 
+  ltac:(interval_analysis0 subtract_slowly).
+
+Definition test_simple_if2 :=
+  ltac:(interval_analysis0 simple_if2).
+
+Definition test_if_while :=
+  ltac:(interval_analysis0 if_while).
+  
+Definition test_Fin :=
+  ltac:(interval_analysis0 Fin).
+  
+
+Check test_sample_prog.
